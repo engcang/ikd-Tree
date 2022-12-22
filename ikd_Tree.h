@@ -63,6 +63,7 @@ public:
         int TreeSize = 1;
         int invalid_point_num = 0;
         int down_del_num = 0;
+        bool seen_by_camera = false;
         bool point_deleted = false;
         bool tree_deleted = false;
         bool point_downsample_deleted = false;
