@@ -335,6 +335,7 @@ public:
     void Delete_Points(PointVector &PointToDel);
     int Delete_Point_Boxes(vector<BoxPointType> &BoxPoints);
     void Set_Covered_Points(PointVector &PointsCovered);
+    void Get_Covered_Points(KD_TREE_NODE *root, PointVector &Storage);
     void flatten(KD_TREE_NODE *root, PointVector &Storage, delete_point_storage_set storage_type);
     void acquire_removed_points(PointVector &removed_points);
     BoxPointType tree_range();

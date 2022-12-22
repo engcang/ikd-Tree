@@ -631,9 +631,9 @@ void KD_TREE<PointType>::Set_Covered_Points(PointVector &PointsCovered)
 {
     for (int i = 0; i < PointsCovered.size(); i++)
     {
-        pthread_mutex_lock(&working_flag_mutex);
+        // pthread_mutex_lock(&working_flag_mutex);
         Set_Covered_by_point(&Root_Node, PointsCovered[i]);
-        pthread_mutex_unlock(&working_flag_mutex);
+        // pthread_mutex_unlock(&working_flag_mutex);
     }
     return;
 }
@@ -1658,6 +1658,21 @@ void KD_TREE<PointType>::Update(KD_TREE_NODE *root)
         root->alpha_del = float(root->invalid_point_num) / root->TreeSize;
         root->alpha_bal = (tmp_bal >= 0.5 - EPSS) ? tmp_bal : 1 - tmp_bal;
     }
+    return;
+}
+
+template <typename PointType>
+void KD_TREE<PointType>::Get_Covered_Points(KD_TREE_NODE *root, PointVector &Storage)
+{
+    if (root == nullptr)
+        return;
+    Push_Down(root);
+    if (!root->point_deleted && root->seen_by_camera)
+    {
+        Storage.push_back(root->point);
+    }
+    Get_Covered_Points(root->left_son_ptr, Storage);
+    Get_Covered_Points(root->right_son_ptr, Storage);
     return;
 }
 
