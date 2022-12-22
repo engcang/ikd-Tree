@@ -601,6 +601,44 @@ void KD_TREE<PointType>::Add_Point_Boxes(vector<BoxPointType> &BoxPoints)
 }
 
 template <typename PointType>
+void KD_TREE<PointType>::Set_Covered_by_point(KD_TREE_NODE **root, PointType point)
+{
+    if ((*root) == nullptr || (*root)->tree_deleted)
+        return;
+    (*root)->working_flag = true;
+
+    if (same_point((*root)->point, point) && !(*root)->point_deleted)
+    {
+        (*root)->seen_by_camera = true;
+        return;
+    }
+    if (((*root)->division_axis == 0 && point.x < (*root)->point.x) || ((*root)->division_axis == 1 && point.y < (*root)->point.y) || ((*root)->division_axis == 2 && point.z < (*root)->point.z))
+    {
+        Set_Covered_by_point(&(*root)->left_son_ptr, point);
+    }
+    else
+    {
+        Set_Covered_by_point(&(*root)->right_son_ptr, point);
+    }
+
+    if ((*root) != nullptr)
+        (*root)->working_flag = false;
+    return;
+}
+
+template <typename PointType>
+void KD_TREE<PointType>::Set_Covered_Points(PointVector &PointsCovered)
+{
+    for (int i = 0; i < PointsCovered.size(); i++)
+    {
+        pthread_mutex_lock(&working_flag_mutex);
+        Set_Covered_by_point(&Root_Node, PointsCovered[i]);
+        pthread_mutex_unlock(&working_flag_mutex);
+    }
+    return;
+}
+
+template <typename PointType>
 void KD_TREE<PointType>::Delete_Points(PointVector &PointToDel)
 {
     for (int i = 0; i < PointToDel.size(); i++)

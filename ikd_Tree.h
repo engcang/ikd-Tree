@@ -289,6 +289,7 @@ private:
     void Rebuild(KD_TREE_NODE **root);
     int Delete_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample);
     void Delete_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild);
+    void Set_Covered_by_point(KD_TREE_NODE **root, PointType point);
     void Add_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild, int father_axis);
     void Add_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild);
     void Search(KD_TREE_NODE *root, int k_nearest, PointType point, MANUAL_HEAP &q, float max_dist); //priority_queue<PointType_CMP>
@@ -333,6 +334,7 @@ public:
     void Add_Point_Boxes(vector<BoxPointType> &BoxPoints);
     void Delete_Points(PointVector &PointToDel);
     int Delete_Point_Boxes(vector<BoxPointType> &BoxPoints);
+    void Set_Covered_Points(PointVector &PointsCovered);
     void flatten(KD_TREE_NODE *root, PointVector &Storage, delete_point_storage_set storage_type);
     void acquire_removed_points(PointVector &removed_points);
     BoxPointType tree_range();
