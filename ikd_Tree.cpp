@@ -607,7 +607,7 @@ void KD_TREE<PointType>::Set_Covered_by_point(KD_TREE_NODE **root, PointType poi
         return;
     (*root)->working_flag = true;
 
-    if (same_point((*root)->point, point) && !(*root)->point_deleted)
+    if (almost_same_point((*root)->point, point) && !(*root)->point_deleted)
     {
         (*root)->seen_by_camera = true;
         return;
@@ -895,7 +895,7 @@ void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, PointType point, b
         return;
     (*root)->working_flag = true;
     Push_Down(*root);
-    if (same_point((*root)->point, point) && !(*root)->point_deleted)
+    if (almost_same_point((*root)->point, point) && !(*root)->point_deleted)
     {
         (*root)->point_deleted = true;
         (*root)->invalid_point_num += 1;
@@ -1730,6 +1730,12 @@ template <typename PointType>
 bool KD_TREE<PointType>::same_point(PointType a, PointType b)
 {
     return (fabs(a.x - b.x) < EPSS && fabs(a.y - b.y) < EPSS && fabs(a.z - b.z) < EPSS);
+}
+
+template <typename PointType>
+bool KD_TREE<PointType>::almost_same_point(PointType a, PointType b)
+{
+    return (fabs(a.x - b.x) < EPSSS && fabs(a.y - b.y) < EPSSS && fabs(a.z - b.z) < EPSSS);
 }
 
 template <typename PointType>

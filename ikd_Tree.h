@@ -11,6 +11,7 @@
 #include <pcl/point_types.h>
 
 #define EPSS 1e-6
+#define EPSSS 1e-3
 #define Minimal_Unbalanced_Tree_Size 10
 #define Multi_Thread_Rebuild_Point_Num 1500
 #define DOWNSAMPLE_SWITCH true
@@ -301,6 +302,7 @@ private:
     void delete_tree_nodes(KD_TREE_NODE **root);
     void downsample(KD_TREE_NODE **root);
     bool same_point(PointType a, PointType b);
+    bool almost_same_point(PointType a, PointType b);
     float calc_dist(PointType a, PointType b);
     float calc_box_dist(KD_TREE_NODE *node, PointType point);
     static bool point_cmp_x(PointType a, PointType b);
