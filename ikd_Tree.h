@@ -11,7 +11,6 @@
 #include <pcl/point_types.h>
 
 #define EPSS 1e-6
-#define EPSSS 1e-3
 #define Minimal_Unbalanced_Tree_Size 10
 #define Multi_Thread_Rebuild_Point_Num 1500
 #define DOWNSAMPLE_SWITCH true
@@ -64,7 +63,7 @@ public:
         int TreeSize = 1;
         int invalid_point_num = 0;
         int down_del_num = 0;
-        bool seen_by_camera = false;
+        bool point_covered = false;
         bool point_deleted = false;
         bool tree_deleted = false;
         bool point_downsample_deleted = false;
@@ -245,6 +244,7 @@ public:
                 is_empty = false;
             tail++;
             tail %= Q_LEN;
+            return;
         }
         bool empty()
         {
@@ -291,6 +291,7 @@ private:
     int Delete_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample);
     void Delete_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild);
     void Set_Covered_by_point(KD_TREE_NODE **root, PointType point);
+    void Get_Points_Covered(KD_TREE_NODE *root, PointVector &Storage, bool get_covered_or_uncovered);
     void Add_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild, int father_axis);
     void Add_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild);
     void Search(KD_TREE_NODE *root, int k_nearest, PointType point, MANUAL_HEAP &q, float max_dist); //priority_queue<PointType_CMP>
@@ -315,14 +316,17 @@ public:
     void Set_delete_criterion_param(float delete_param)
     {
         delete_criterion_param = delete_param;
+        return;
     }
     void Set_balance_criterion_param(float balance_param)
     {
         balance_criterion_param = balance_param;
+        return;
     }
     void set_downsample_param(float downsample_param)
     {
         downsample_size = downsample_param;
+        return;
     }
     void InitializeKDTree(float delete_param = 0.5, float balance_param = 0.7, float box_length = 0.2);
     int size();
@@ -337,7 +341,7 @@ public:
     void Delete_Points(PointVector &PointToDel);
     int Delete_Point_Boxes(vector<BoxPointType> &BoxPoints);
     void Set_Covered_Points(PointVector &PointsCovered);
-    void Get_Covered_Points(KD_TREE_NODE *root, PointVector &Storage);
+    void Get_Covered_Points(PointVector &Storage, bool get_covered_or_uncovered = true);
     void flatten(KD_TREE_NODE *root, PointVector &Storage, delete_point_storage_set storage_type);
     void acquire_removed_points(PointVector &removed_points);
     BoxPointType tree_range();

@@ -35,6 +35,7 @@ void KD_TREE<PointType>::InitializeKDTree(float delete_param, float balance_para
     Set_delete_criterion_param(delete_param);
     Set_balance_criterion_param(balance_param);
     set_downsample_param(box_length);
+    return;
 }
 
 template <typename PointType>
@@ -64,6 +65,7 @@ void KD_TREE<PointType>::InitTreeNode(KD_TREE_NODE *root)
     root->point_downsample_deleted = false;
     root->working_flag = false;
     pthread_mutex_init(&(root->push_down_mutex_lock), NULL);
+    return;
 }
 
 template <typename PointType>
@@ -187,6 +189,7 @@ void KD_TREE<PointType>::root_alpha(float &alpha_bal, float &alpha_del)
             return;
         }
     }
+    return;
 }
 
 template <typename PointType>
@@ -200,6 +203,7 @@ void KD_TREE<PointType>::start_thread()
     pthread_mutex_init(&search_flag_mutex, NULL);
     pthread_create(&rebuild_thread, NULL, multi_thread_ptr, (void *)this);
     printf("Multi thread started \n");
+    return;
 }
 
 template <typename PointType>
@@ -216,6 +220,7 @@ void KD_TREE<PointType>::stop_thread()
     pthread_mutex_destroy(&points_deleted_rebuild_mutex_lock);
     pthread_mutex_destroy(&working_flag_mutex);
     pthread_mutex_destroy(&search_flag_mutex);
+    return;
 }
 
 template <typename PointType>
@@ -364,6 +369,7 @@ void KD_TREE<PointType>::multi_thread_rebuild()
         usleep(100);
     }
     printf("Rebuild thread terminated normally\n");
+    return;
 }
 
 template <typename PointType>
@@ -403,6 +409,7 @@ void KD_TREE<PointType>::run_operation(KD_TREE_NODE **root, Operation_Logger_Typ
     default:
         break;
     }
+    return;
 }
 
 template <typename PointType>
@@ -420,6 +427,7 @@ void KD_TREE<PointType>::Build(PointVector point_cloud)
     Update(STATIC_ROOT_NODE);
     STATIC_ROOT_NODE->TreeSize = 0;
     Root_Node = STATIC_ROOT_NODE->left_son_ptr;
+    return;
 }
 
 template <typename PointType>
@@ -465,6 +473,7 @@ void KD_TREE<PointType>::Box_Search(const BoxPointType &Box_of_Point, PointVecto
 {
     Storage.clear();
     Search_by_range(Root_Node, Box_of_Point, Storage);
+    return;
 }
 
 template <typename PointType>
@@ -472,6 +481,7 @@ void KD_TREE<PointType>::Radius_Search(PointType point, const float radius, Poin
 {
     Storage.clear();
     Search_by_radius(Root_Node, point, radius, Storage);
+    return;
 }
 
 template <typename PointType>
@@ -603,26 +613,41 @@ void KD_TREE<PointType>::Add_Point_Boxes(vector<BoxPointType> &BoxPoints)
 template <typename PointType>
 void KD_TREE<PointType>::Set_Covered_by_point(KD_TREE_NODE **root, PointType point)
 {
-    if ((*root) == nullptr || (*root)->tree_deleted)
+    if ((*root) == nullptr)
         return;
-    (*root)->working_flag = true;
-
-    if (almost_same_point((*root)->point, point) && !(*root)->point_deleted)
+    Push_Down(*root);
+    if (same_point((*root)->point, point) && !(*root)->point_deleted)
     {
-        (*root)->seen_by_camera = true;
+        (*root)->point_covered = true;
         return;
     }
+
     if (((*root)->division_axis == 0 && point.x < (*root)->point.x) || ((*root)->division_axis == 1 && point.y < (*root)->point.y) || ((*root)->division_axis == 2 && point.z < (*root)->point.z))
     {
-        Set_Covered_by_point(&(*root)->left_son_ptr, point);
+        if ((Rebuild_Ptr == nullptr) || (*root)->left_son_ptr != *Rebuild_Ptr)
+        {
+            Set_Covered_by_point(&(*root)->left_son_ptr, point);
+        }
+        else
+        {
+            pthread_mutex_lock(&search_flag_mutex);
+            Set_Covered_by_point(&(*root)->left_son_ptr, point);
+            pthread_mutex_unlock(&search_flag_mutex);
+        }
     }
     else
     {
-        Set_Covered_by_point(&(*root)->right_son_ptr, point);
+        if ((Rebuild_Ptr == nullptr) || (*root)->right_son_ptr != *Rebuild_Ptr)
+        {
+            Set_Covered_by_point(&(*root)->right_son_ptr, point);
+        }
+        else
+        {
+            pthread_mutex_lock(&search_flag_mutex);
+            Set_Covered_by_point(&(*root)->right_son_ptr, point);            
+            pthread_mutex_unlock(&search_flag_mutex);
+        }
     }
-
-    if ((*root) != nullptr)
-        (*root)->working_flag = false;
     return;
 }
 
@@ -631,9 +656,16 @@ void KD_TREE<PointType>::Set_Covered_Points(PointVector &PointsCovered)
 {
     for (int i = 0; i < PointsCovered.size(); i++)
     {
-        // pthread_mutex_lock(&working_flag_mutex);
-        Set_Covered_by_point(&Root_Node, PointsCovered[i]);
-        // pthread_mutex_unlock(&working_flag_mutex);
+        if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
+        {
+            Set_Covered_by_point(&Root_Node, PointsCovered[i]);
+        }
+        else
+        {
+            pthread_mutex_lock(&search_flag_mutex);
+            Set_Covered_by_point(&Root_Node, PointsCovered[i]);
+            pthread_mutex_unlock(&search_flag_mutex);
+        }
     }
     return;
 }
@@ -895,7 +927,7 @@ void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, PointType point, b
         return;
     (*root)->working_flag = true;
     Push_Down(*root);
-    if (almost_same_point((*root)->point, point) && !(*root)->point_deleted)
+    if (same_point((*root)->point, point) && !(*root)->point_deleted)
     {
         (*root)->point_deleted = true;
         (*root)->invalid_point_num += 1;
@@ -1662,17 +1694,44 @@ void KD_TREE<PointType>::Update(KD_TREE_NODE *root)
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Get_Covered_Points(KD_TREE_NODE *root, PointVector &Storage)
+void KD_TREE<PointType>::Get_Covered_Points(PointVector &Storage, bool get_covered_or_uncovered)
+{
+    Storage.clear();
+    Get_Points_Covered(Root_Node, Storage, get_covered_or_uncovered);
+    return;
+}
+
+template <typename PointType>
+void KD_TREE<PointType>::Get_Points_Covered(KD_TREE_NODE *root, PointVector &Storage, bool get_covered_or_uncovered)
 {
     if (root == nullptr)
         return;
     Push_Down(root);
-    if (!root->point_deleted && root->seen_by_camera)
+    if (!root->point_deleted && (root->point_covered && get_covered_or_uncovered) )
     {
         Storage.push_back(root->point);
     }
-    Get_Covered_Points(root->left_son_ptr, Storage);
-    Get_Covered_Points(root->right_son_ptr, Storage);
+
+    if ((Rebuild_Ptr == nullptr) || root->left_son_ptr != *Rebuild_Ptr)
+    {
+        Get_Points_Covered(root->left_son_ptr, Storage);
+    }
+    else
+    {
+        pthread_mutex_lock(&search_flag_mutex);
+        Get_Points_Covered(root->left_son_ptr, Storage);
+        pthread_mutex_unlock(&search_flag_mutex);
+    }
+    if ((Rebuild_Ptr == nullptr) || root->right_son_ptr != *Rebuild_Ptr)
+    {
+        Get_Points_Covered(root->right_son_ptr, Storage);
+    }
+    else
+    {
+        pthread_mutex_lock(&search_flag_mutex);
+        Get_Points_Covered(root->right_son_ptr, Storage);
+        pthread_mutex_unlock(&search_flag_mutex);
+    }
     return;
 }
 
@@ -1730,12 +1789,6 @@ template <typename PointType>
 bool KD_TREE<PointType>::same_point(PointType a, PointType b)
 {
     return (fabs(a.x - b.x) < EPSS && fabs(a.y - b.y) < EPSS && fabs(a.z - b.z) < EPSS);
-}
-
-template <typename PointType>
-bool KD_TREE<PointType>::almost_same_point(PointType a, PointType b)
-{
-    return (fabs(a.x - b.x) < EPSSS && fabs(a.y - b.y) < EPSSS && fabs(a.z - b.z) < EPSSS);
 }
 
 template <typename PointType>
