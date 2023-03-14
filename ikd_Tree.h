@@ -11,6 +11,7 @@
 #include <pcl/point_types.h>
 
 #define EPSS 1e-6
+#define EPSSS 1e-1
 #define Minimal_Unbalanced_Tree_Size 10
 #define Multi_Thread_Rebuild_Point_Num 1500
 #define DOWNSAMPLE_SWITCH true
@@ -19,8 +20,19 @@
 
 using namespace std;
 
-// typedef pcl::PointXYZINormal PointType;
-// typedef vector<PointType, Eigen::aligned_allocator<PointType>>  PointVector;
+
+struct PointType_Coverage
+{
+    float x,y,z;
+    bool covered=false;
+    PointType_Coverage (float px = 0.0f, float py = 0.0f, float pz = 0.0f, bool covered_flag=false)
+    {
+        x = px;
+        y = py;
+        z = pz;
+        covered = covered_flag;
+    }
+};
 
 struct BoxPointType
 {
@@ -286,12 +298,12 @@ private:
     PointVector Multithread_Points_deleted;
     void InitTreeNode(KD_TREE_NODE *root);
     void Test_Lock_States(KD_TREE_NODE *root);
-    void BuildTree(KD_TREE_NODE **root, int l, int r, PointVector &Storage);
+    void BuildTree(KD_TREE_NODE **root, int l, int r, PointVector &Storage, vector<bool> &vector_point_covered);
     void Rebuild(KD_TREE_NODE **root);
     int Delete_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample);
     void Delete_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild);
-    void Set_Covered_by_point(KD_TREE_NODE **root, PointType point);
-    void Get_Points_Covered(KD_TREE_NODE *root, PointVector &Storage, bool get_covered_or_uncovered);
+    void Set_Covered_by_point(KD_TREE_NODE *root, PointType point);
+    void Get_Points_Covered(KD_TREE_NODE *root, PointVector &Storage, const bool &get_covered_or_uncovered);
     void Add_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild, int father_axis);
     void Add_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild);
     void Search(KD_TREE_NODE *root, int k_nearest, PointType point, MANUAL_HEAP &q, float max_dist); //priority_queue<PointType_CMP>
@@ -341,11 +353,13 @@ public:
     void Delete_Points(PointVector &PointToDel);
     int Delete_Point_Boxes(vector<BoxPointType> &BoxPoints);
     void Set_Covered_Points(PointVector &PointsCovered);
-    void Get_Covered_Points(PointVector &Storage, bool get_covered_or_uncovered = true);
+    void Get_Covered_Points(PointVector &Storage, const bool &get_covered_or_uncovered = true);
     void flatten(KD_TREE_NODE *root, PointVector &Storage, delete_point_storage_set storage_type);
+    void Rebuild_flatten(KD_TREE_NODE *root, PointVector &Storage, vector<bool> &vector_point_covered, delete_point_storage_set storage_type);
     void acquire_removed_points(PointVector &removed_points);
     BoxPointType tree_range();
     PointVector PCL_Storage;
+    vector<bool> vec_pt_covered;
     KD_TREE_NODE *Root_Node = nullptr;
     int max_queue_size = 0;
 };
