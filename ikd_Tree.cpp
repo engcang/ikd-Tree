@@ -487,12 +487,9 @@ void KD_TREE<PointType>::Radius_Search(PointType point, const float radius, Poin
 template <typename PointType>
 int KD_TREE<PointType>::Add_Points(PointVector &PointToAdd, bool downsample_on)
 {
-    int NewPointSize = PointToAdd.size();
-    int tree_size = size();
     BoxPointType Box_of_Point;
-    PointType downsample_result, mid_point;
+    PointType mid_point;
     bool downsample_switch = downsample_on && DOWNSAMPLE_SWITCH;
-    float min_dist, tmp_dist;
     int tmp_counter = 0;
     for (int i = 0; i < PointToAdd.size(); i++)
     {
@@ -509,51 +506,33 @@ int KD_TREE<PointType>::Add_Points(PointVector &PointToAdd, bool downsample_on)
             mid_point.z = Box_of_Point.vertex_min[2] + (Box_of_Point.vertex_max[2] - Box_of_Point.vertex_min[2]) / 2.0;
             PointVector().swap(Downsample_Storage);
             Search_by_range(Root_Node, Box_of_Point, Downsample_Storage);
-            min_dist = calc_dist(PointToAdd[i], mid_point);
-            downsample_result = PointToAdd[i];
-            for (int index = 0; index < Downsample_Storage.size(); index++)
+            if (Downsample_Storage.size() > 0) // a point already exists in the voxel grid, do nothing
             {
-                tmp_dist = calc_dist(Downsample_Storage[index], mid_point);
-                if (tmp_dist < min_dist)
-                {
-                    min_dist = tmp_dist;
-                    downsample_result = Downsample_Storage[index];
-                }
+                tmp_counter++;
             }
-            if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
+            else //no point in the voxel grid, add a point (not raw, but as the mid point (centroid) of voxel grid)
             {
-                if (Downsample_Storage.size() > 1 || same_point(PointToAdd[i], downsample_result))
+                if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
                 {
-                    if (Downsample_Storage.size() > 0)
-                        Delete_by_range(&Root_Node, Box_of_Point, true, true);
-                    Add_by_point(&Root_Node, downsample_result, true, Root_Node->division_axis);
+                    Add_by_point(&Root_Node, mid_point, true, Root_Node->division_axis);
                     tmp_counter++;
                 }
-            }
-            else
-            {
-                if (Downsample_Storage.size() > 1 || same_point(PointToAdd[i], downsample_result))
+                else
                 {
-                    Operation_Logger_Type operation_delete, operation;
-                    operation_delete.boxpoint = Box_of_Point;
-                    operation_delete.op = DOWNSAMPLE_DELETE;
-                    operation.point = downsample_result;
+                    Operation_Logger_Type operation;
+                    operation.point = mid_point;
                     operation.op = ADD_POINT;
                     pthread_mutex_lock(&working_flag_mutex);
-                    if (Downsample_Storage.size() > 0)
-                        Delete_by_range(&Root_Node, Box_of_Point, false, true);
-                    Add_by_point(&Root_Node, downsample_result, false, Root_Node->division_axis);
+                    Add_by_point(&Root_Node, mid_point, false, Root_Node->division_axis);
                     tmp_counter++;
                     if (rebuild_flag)
                     {
                         pthread_mutex_lock(&rebuild_logger_mutex_lock);
-                        if (Downsample_Storage.size() > 0)
-                            Rebuild_Logger.push(operation_delete);
                         Rebuild_Logger.push(operation);
                         pthread_mutex_unlock(&rebuild_logger_mutex_lock);
                     }
                     pthread_mutex_unlock(&working_flag_mutex);
-                };
+                }
             }
         }
         else
