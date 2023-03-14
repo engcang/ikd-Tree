@@ -21,7 +21,7 @@
 using namespace std;
 
 
-struct PointType_Coverage
+struct PointType_Coverage //pcl::PointXYZ + coverage, if want to use PointXYZI or else, should define struct here
 {
     float x,y,z;
     bool covered=false;
@@ -75,7 +75,6 @@ public:
         int TreeSize = 1;
         int invalid_point_num = 0;
         int down_del_num = 0;
-        bool point_covered = false;
         bool point_deleted = false;
         bool tree_deleted = false;
         bool point_downsample_deleted = false;
@@ -298,7 +297,7 @@ private:
     PointVector Multithread_Points_deleted;
     void InitTreeNode(KD_TREE_NODE *root);
     void Test_Lock_States(KD_TREE_NODE *root);
-    void BuildTree(KD_TREE_NODE **root, int l, int r, PointVector &Storage, vector<bool> &vector_point_covered);
+    void BuildTree(KD_TREE_NODE **root, int l, int r, PointVector &Storage);
     void Rebuild(KD_TREE_NODE **root);
     int Delete_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample);
     void Delete_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild);
@@ -355,7 +354,6 @@ public:
     void Set_Covered_Points(PointVector &PointsCovered);
     void Get_Covered_Points(PointVector &Storage, const bool &get_covered_or_uncovered = true);
     void flatten(KD_TREE_NODE *root, PointVector &Storage, delete_point_storage_set storage_type);
-    void Rebuild_flatten(KD_TREE_NODE *root, PointVector &Storage, vector<bool> &vector_point_covered, delete_point_storage_set storage_type);
     void acquire_removed_points(PointVector &removed_points);
     BoxPointType tree_range();
     PointVector PCL_Storage;
