@@ -11,7 +11,6 @@
 #include <pcl/point_types.h>
 
 #define EPSS 1e-6
-#define EPSSS 1e-1
 #define Minimal_Unbalanced_Tree_Size 10
 #define Multi_Thread_Rebuild_Point_Num 1500
 #define DOWNSAMPLE_SWITCH true
@@ -301,7 +300,7 @@ private:
     void Rebuild(KD_TREE_NODE **root);
     int Delete_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample);
     void Delete_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild);
-    void Set_Covered_by_point(KD_TREE_NODE *root, PointType point);
+    int Set_Covered_by_point(KD_TREE_NODE *root, PointType point);
     void Get_Points_Covered(KD_TREE_NODE *root, PointVector &Storage, const bool &get_covered_or_uncovered);
     void Add_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild, int father_axis);
     void Add_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild);
@@ -314,7 +313,6 @@ private:
     void delete_tree_nodes(KD_TREE_NODE **root);
     void downsample(KD_TREE_NODE **root);
     bool same_point(PointType a, PointType b);
-    bool almost_same_point(PointType a, PointType b);
     float calc_dist(PointType a, PointType b);
     float calc_box_dist(KD_TREE_NODE *node, PointType point);
     static bool point_cmp_x(PointType a, PointType b);
@@ -357,7 +355,6 @@ public:
     void acquire_removed_points(PointVector &removed_points);
     BoxPointType tree_range();
     PointVector PCL_Storage;
-    vector<bool> vec_pt_covered;
     KD_TREE_NODE *Root_Node = nullptr;
     int max_queue_size = 0;
 };

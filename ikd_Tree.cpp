@@ -642,26 +642,34 @@ void KD_TREE<PointType>::Get_Points_Covered(KD_TREE_NODE *root, PointVector &Sto
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Set_Covered_by_point(KD_TREE_NODE *root, PointType point)
+int KD_TREE<PointType>::Set_Covered_by_point(KD_TREE_NODE *root, PointType point)
 {
     if (root == nullptr)
-        return;
+        return -1;
     Push_Down(root);
-    if (almost_same_point(root->point, point) && !root->point_deleted)
+    if (same_point(root->point, point) && !root->point_deleted)
     {
         root->point.covered = true;
-        return;
-    }
-
-    if ((root->division_axis == 0 && point.x < root->point.x) || (root->division_axis == 1 && point.y < root->point.y) || (root->division_axis == 2 && point.z < root->point.z))
-    {
-        Set_Covered_by_point(root->left_son_ptr, point);
+        return 0;
     }
     else
     {
-        Set_Covered_by_point(root->right_son_ptr, point);
+        // if ((root->division_axis == 0 && point.x < root->point.x) || (root->division_axis == 1 && point.y < root->point.y) || (root->division_axis == 2 && point.z < root->point.z))
+        // {
+        //     if (Set_Covered_by_point(root->left_son_ptr, point) == 0)
+        //         return 0;
+        // }
+        // else
+        // {            
+        //     if (Set_Covered_by_point(root->right_son_ptr, point) == 0)
+        //         return 0;
+        // }
+        if (Set_Covered_by_point(root->left_son_ptr, point) == 0)
+            return 0;
+        else if (Set_Covered_by_point(root->right_son_ptr, point) == 0)
+            return 0;
     }
-    return;
+    return -1;
 }
 
 template <typename PointType>
@@ -669,6 +677,7 @@ void KD_TREE<PointType>::Set_Covered_Points(PointVector &PointsCovered)
 {
     for (int i = 0; i < PointsCovered.size(); i++)
     {
+        if (PointsCovered[i].covered) continue;
         Set_Covered_by_point(Root_Node, PointsCovered[i]);
     }
     return;
@@ -785,7 +794,6 @@ void KD_TREE<PointType>::BuildTree(KD_TREE_NODE **root, int l, int r, PointVecto
     {
     case 0:
         nth_element(begin(Storage) + l, begin(Storage) + mid, begin(Storage) + r + 1, point_cmp_x);
-        nth_element(begin(Storage) + l, begin(Storage) + mid, begin(Storage) + r + 1, point_cmp_x);
         break;
     case 1:
         nth_element(begin(Storage) + l, begin(Storage) + mid, begin(Storage) + r + 1, point_cmp_y);
@@ -797,6 +805,9 @@ void KD_TREE<PointType>::BuildTree(KD_TREE_NODE **root, int l, int r, PointVecto
         nth_element(begin(Storage) + l, begin(Storage) + mid, begin(Storage) + r + 1, point_cmp_x);
         break;
     }
+    // int mid_ = partition(begin(Storage) + mid, begin(Storage) + r + 1, [&](PointType p)
+            // {return (Storage[mid].x==p.x && Storage[mid].y==p.y && Storage[mid].z==p.z);}) - begin(Storage) - 1;
+
     (*root)->point = Storage[mid];
     KD_TREE_NODE *left_son = nullptr, *right_son = nullptr;
     BuildTree(&left_son, l, mid - 1, Storage);
@@ -1752,12 +1763,6 @@ template <typename PointType>
 bool KD_TREE<PointType>::same_point(PointType a, PointType b)
 {
     return (fabs(a.x - b.x) < EPSS && fabs(a.y - b.y) < EPSS && fabs(a.z - b.z) < EPSS);
-}
-
-template <typename PointType>
-bool KD_TREE<PointType>::almost_same_point(PointType a, PointType b)
-{
-    return (fabs(a.x - b.x) < EPSSS && fabs(a.y - b.y) < EPSSS && fabs(a.z - b.z) < EPSSS);
 }
 
 template <typename PointType>
