@@ -6,6 +6,11 @@ Author: Yixi Cai
 email: yixicai@connect.hku.hk
 */
 
+/*
+Modified by: Eungchang Mason Lee
+https://github.com/engcang/ikd-Tree.git
+*/
+
 template <typename PointType>
 KD_TREE<PointType>::KD_TREE(float delete_param, float balance_param, float box_length)
 {
@@ -805,9 +810,23 @@ void KD_TREE<PointType>::BuildTree(KD_TREE_NODE **root, int l, int r, PointVecto
         nth_element(begin(Storage) + l, begin(Storage) + mid, begin(Storage) + r + 1, point_cmp_x);
         break;
     }
-    // int mid_ = partition(begin(Storage) + mid, begin(Storage) + r + 1, [&](PointType p)
+    // int split_index = partition(begin(Storage) + mid + 1, begin(Storage) + r + 1, [&](PointType p)
             // {return (Storage[mid].x==p.x && Storage[mid].y==p.y && Storage[mid].z==p.z);}) - begin(Storage) - 1;
-
+    // (*root)->point = Storage[split_index];
+    // KD_TREE_NODE *left_son = nullptr, *right_son = nullptr;
+    // if (l != split_index)
+    // {
+    //     int left_son_rightmost_index = 0;
+    //     if (split_index != 0)
+    //         left_son_rightmost_index = split_index - 1;
+    //     BuildTree(&left_son, l, left_son_rightmost_index, Storage);
+    //     (*root)->left_son_ptr = left_son;
+    // }
+    // if (r != split_index)
+    // {
+    //     BuildTree(&right_son, split_index + 1, r, Storage);
+    //     (*root)->right_son_ptr = right_son;
+    // }
     (*root)->point = Storage[mid];
     KD_TREE_NODE *left_son = nullptr, *right_son = nullptr;
     BuildTree(&left_son, l, mid - 1, Storage);
