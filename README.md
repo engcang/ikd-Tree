@@ -9,7 +9,7 @@
 		+ with `covered` flag in `PointType` struct
 		+ `Set_Covered_Points`
 			+ Old: kdtree search with division axis for each point (not accurate)
-			+ Currnet: for each point, check whole tree
+			+ Currnet: for each point, check whole tree (accurate but slow)
 + Additionally, `Downsampling` mechanism is modified for faster mapping and grid-aligned points.
 	+ Original: add a point with the shortest distance to the centroid of a voxel, and delete other points in a voxel grid
 		+ Searching other points, deleting other points, and comparing distance take more time than changed method

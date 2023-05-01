@@ -418,7 +418,7 @@ void KD_TREE<PointType>::run_operation(KD_TREE_NODE **root, Operation_Logger_Typ
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Build(PointVector point_cloud)
+void KD_TREE<PointType>::Build(PointVector &point_cloud)
 {
     if (Root_Node != nullptr)
     {
@@ -436,7 +436,7 @@ void KD_TREE<PointType>::Build(PointVector point_cloud)
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Nearest_Search(PointType point, int k_nearest, PointVector &Nearest_Points, vector<float> &Point_Distance, float max_dist)
+void KD_TREE<PointType>::Nearest_Search(const PointType &point, const int &k_nearest, PointVector &Nearest_Points, vector<float> &Point_Distance, const float &max_dist)
 {
     MANUAL_HEAP q(2 * k_nearest);
     q.clear();
@@ -482,7 +482,7 @@ void KD_TREE<PointType>::Box_Search(const BoxPointType &Box_of_Point, PointVecto
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Radius_Search(PointType point, const float radius, PointVector &Storage)
+void KD_TREE<PointType>::Radius_Search(const PointType &point, const float &radius, PointVector &Storage)
 {
     Storage.clear();
     Search_by_radius(Root_Node, point, radius, Storage);
@@ -490,7 +490,7 @@ void KD_TREE<PointType>::Radius_Search(PointType point, const float radius, Poin
 }
 
 template <typename PointType>
-int KD_TREE<PointType>::Add_Points(PointVector &PointToAdd, bool downsample_on)
+int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &downsample_on)
 {
     BoxPointType Box_of_Point;
     PointType mid_point;
@@ -500,16 +500,17 @@ int KD_TREE<PointType>::Add_Points(PointVector &PointToAdd, bool downsample_on)
     // If not built, Build first
     if (Root_Node == nullptr)
     {
+        PointVector PointToBuild = PointToAdd;
         if (downsample_switch) //Input points for Build is also modified to use grid-aligned Downsampling
         {
             PointVector PointToAddDownsampled;
-            for (int i = 0; i < PointToAdd.size(); ++i)
+            for (int i = 0; i < PointToBuild.size(); ++i)
             {
-                Box_of_Point.vertex_min[0] = floor(PointToAdd[i].x / downsample_size) * downsample_size;
+                Box_of_Point.vertex_min[0] = floor(PointToBuild[i].x / downsample_size) * downsample_size;
                 Box_of_Point.vertex_max[0] = Box_of_Point.vertex_min[0] + downsample_size;
-                Box_of_Point.vertex_min[1] = floor(PointToAdd[i].y / downsample_size) * downsample_size;
+                Box_of_Point.vertex_min[1] = floor(PointToBuild[i].y / downsample_size) * downsample_size;
                 Box_of_Point.vertex_max[1] = Box_of_Point.vertex_min[1] + downsample_size;
-                Box_of_Point.vertex_min[2] = floor(PointToAdd[i].z / downsample_size) * downsample_size;
+                Box_of_Point.vertex_min[2] = floor(PointToBuild[i].z / downsample_size) * downsample_size;
                 Box_of_Point.vertex_max[2] = Box_of_Point.vertex_min[2] + downsample_size;
                 mid_point.x = Box_of_Point.vertex_min[0] + (Box_of_Point.vertex_max[0] - Box_of_Point.vertex_min[0]) / 2.0;
                 mid_point.y = Box_of_Point.vertex_min[1] + (Box_of_Point.vertex_max[1] - Box_of_Point.vertex_min[1]) / 2.0;
@@ -519,9 +520,9 @@ int KD_TREE<PointType>::Add_Points(PointVector &PointToAdd, bool downsample_on)
                     [&](PointType pt){return same_point(mid_point, pt);})))
                     PointToAddDownsampled.push_back(mid_point);
             }
-            PointToAddDownsampled.swap(PointToAdd);
+            PointToAddDownsampled.swap(PointToBuild);
         }
-        Build(PointToAdd);
+        Build(PointToBuild);
         return 0;
     }
 
@@ -596,7 +597,7 @@ int KD_TREE<PointType>::Add_Points(PointVector &PointToAdd, bool downsample_on)
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Add_Point_Boxes(vector<BoxPointType> &BoxPoints)
+void KD_TREE<PointType>::Add_Point_Boxes(const vector<BoxPointType> &BoxPoints)
 {
     for (int i = 0; i < BoxPoints.size(); i++)
     {
@@ -647,7 +648,7 @@ void KD_TREE<PointType>::Get_Points_Covered(KD_TREE_NODE *root, PointVector &Sto
 }
 
 template <typename PointType>
-int KD_TREE<PointType>::Set_Covered_by_point(KD_TREE_NODE *root, PointType point)
+int KD_TREE<PointType>::Set_Covered_by_point(KD_TREE_NODE *root, const PointType &point)
 {
     if (root == nullptr)
         return -1;
@@ -678,7 +679,7 @@ int KD_TREE<PointType>::Set_Covered_by_point(KD_TREE_NODE *root, PointType point
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Set_Covered_Points(PointVector &PointsCovered)
+void KD_TREE<PointType>::Set_Covered_Points(const PointVector &PointsCovered)
 {
     for (int i = 0; i < PointsCovered.size(); i++)
     {
@@ -689,7 +690,7 @@ void KD_TREE<PointType>::Set_Covered_Points(PointVector &PointsCovered)
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Delete_Points(PointVector &PointToDel)
+void KD_TREE<PointType>::Delete_Points(const PointVector &PointToDel)
 {
     for (int i = 0; i < PointToDel.size(); i++)
     {
@@ -717,7 +718,7 @@ void KD_TREE<PointType>::Delete_Points(PointVector &PointToDel)
 }
 
 template <typename PointType>
-int KD_TREE<PointType>::Delete_Point_Boxes(vector<BoxPointType> &BoxPoints)
+int KD_TREE<PointType>::Delete_Point_Boxes(const vector<BoxPointType> &BoxPoints)
 {
     int tmp_counter = 0;
     for (int i = 0; i < BoxPoints.size(); i++)
@@ -764,7 +765,7 @@ void KD_TREE<PointType>::acquire_removed_points(PointVector &removed_points)
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::BuildTree(KD_TREE_NODE **root, int l, int r, PointVector &Storage)
+void KD_TREE<PointType>::BuildTree(KD_TREE_NODE **root, const int &l, const int &r, PointVector &Storage)
 {
     if (l > r)
         return;
@@ -869,7 +870,7 @@ void KD_TREE<PointType>::Rebuild(KD_TREE_NODE **root)
 }
 
 template <typename PointType>
-int KD_TREE<PointType>::Delete_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample)
+int KD_TREE<PointType>::Delete_by_range(KD_TREE_NODE **root, const BoxPointType &boxpoint, const bool &allow_rebuild, const bool &is_downsample)
 {
     if ((*root) == nullptr || (*root)->tree_deleted)
         return 0;
@@ -956,7 +957,7 @@ int KD_TREE<PointType>::Delete_by_range(KD_TREE_NODE **root, BoxPointType boxpoi
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild)
+void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, const PointType &point, const bool &allow_rebuild)
 {
     if ((*root) == nullptr || (*root)->tree_deleted)
         return;
@@ -1024,7 +1025,7 @@ void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, PointType point, b
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Add_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild)
+void KD_TREE<PointType>::Add_by_range(KD_TREE_NODE **root, const BoxPointType &boxpoint, const bool &allow_rebuild)
 {
     if ((*root) == nullptr)
         return;
@@ -1097,7 +1098,7 @@ void KD_TREE<PointType>::Add_by_range(KD_TREE_NODE **root, BoxPointType boxpoint
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Add_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild, int father_axis)
+void KD_TREE<PointType>::Add_by_point(KD_TREE_NODE **root, const PointType &point, const bool &allow_rebuild, const int &father_axis)
 {
     if (*root == nullptr)
     {
@@ -1164,7 +1165,7 @@ void KD_TREE<PointType>::Add_by_point(KD_TREE_NODE **root, PointType point, bool
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Search(KD_TREE_NODE *root, int k_nearest, PointType point, MANUAL_HEAP &q, float max_dist)
+void KD_TREE<PointType>::Search(KD_TREE_NODE *root, const int &k_nearest, const PointType &point, MANUAL_HEAP &q, const float &max_dist)
 {
     if (root == nullptr || root->tree_deleted)
         return;
@@ -1349,7 +1350,7 @@ void KD_TREE<PointType>::Search(KD_TREE_NODE *root, int k_nearest, PointType poi
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, BoxPointType boxpoint, PointVector &Storage)
+void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, const BoxPointType &boxpoint, PointVector &Storage)
 {
     if (root == nullptr)
         return;
@@ -1394,7 +1395,7 @@ void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, BoxPointType boxpoi
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, PointType point, float radius, PointVector &Storage)
+void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, const PointType &point, const float &radius, PointVector &Storage)
 {
     if (root == nullptr)
         return;
@@ -1779,13 +1780,13 @@ void KD_TREE<PointType>::delete_tree_nodes(KD_TREE_NODE **root)
 }
 
 template <typename PointType>
-bool KD_TREE<PointType>::same_point(PointType a, PointType b)
+bool KD_TREE<PointType>::same_point(const PointType &a, const PointType &b)
 {
     return (fabs(a.x - b.x) < EPSS && fabs(a.y - b.y) < EPSS && fabs(a.z - b.z) < EPSS);
 }
 
 template <typename PointType>
-float KD_TREE<PointType>::calc_dist(PointType a, PointType b)
+float KD_TREE<PointType>::calc_dist(const PointType &a, const PointType &b)
 {
     float dist = 0.0f;
     dist = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) + (a.z - b.z) * (a.z - b.z);
@@ -1793,7 +1794,7 @@ float KD_TREE<PointType>::calc_dist(PointType a, PointType b)
 }
 
 template <typename PointType>
-float KD_TREE<PointType>::calc_box_dist(KD_TREE_NODE *node, PointType point)
+float KD_TREE<PointType>::calc_box_dist(KD_TREE_NODE *node, const PointType &point)
 {
     if (node == nullptr)
         return INFINITY;
@@ -1813,11 +1814,11 @@ float KD_TREE<PointType>::calc_box_dist(KD_TREE_NODE *node, PointType point)
     return min_dist;
 }
 template <typename PointType>
-bool KD_TREE<PointType>::point_cmp_x(PointType a, PointType b) { return a.x < b.x; }
+bool KD_TREE<PointType>::point_cmp_x(const PointType &a, const PointType &b) { return a.x < b.x; }
 template <typename PointType>
-bool KD_TREE<PointType>::point_cmp_y(PointType a, PointType b) { return a.y < b.y; }
+bool KD_TREE<PointType>::point_cmp_y(const PointType &a, const PointType &b) { return a.y < b.y; }
 template <typename PointType>
-bool KD_TREE<PointType>::point_cmp_z(PointType a, PointType b) { return a.z < b.z; }
+bool KD_TREE<PointType>::point_cmp_z(const PointType &a, const PointType &b) { return a.z < b.z; }
 
 
 // Manual Instatiations
