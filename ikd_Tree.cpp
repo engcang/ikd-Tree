@@ -870,6 +870,16 @@ void KD_TREE<PointType>::Rebuild(KD_TREE_NODE **root)
 }
 
 template <typename PointType>
+void KD_TREE<PointType>::Reconstruct(PointVector &PointToRecon)
+{
+    delete_tree_nodes(&Root_Node);
+    PointVector().swap(PCL_Storage);
+    Rebuild_Logger.clear();
+    Build(PointToRecon);
+    return;
+}
+
+template <typename PointType>
 int KD_TREE<PointType>::Delete_by_range(KD_TREE_NODE **root, const BoxPointType &boxpoint, const bool &allow_rebuild, const bool &is_downsample)
 {
     if ((*root) == nullptr || (*root)->tree_deleted)

@@ -342,6 +342,7 @@ public:
     int validnum();
     void root_alpha(float &alpha_bal, float &alpha_del);
     void Build(PointVector &point_cloud);
+    void Reconstruct(PointVector &PointToRecon);
     void Nearest_Search(const PointType &point, const int &k_nearest, PointVector &Nearest_Points, vector<float> &Point_Distance, const float &max_dist = INFINITY);
     void Box_Search(const BoxPointType &Box_of_Point, PointVector &Storage);
     void Radius_Search(const PointType &point, const float &radius, PointVector &Storage);
