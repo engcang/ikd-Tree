@@ -718,6 +718,34 @@ void KD_TREE<PointType>::Delete_Points(const PointVector &PointToDel)
 }
 
 template <typename PointType>
+void KD_TREE<PointType>::Delete_Points_Accurate(const PointVector &PointToDel)
+{
+    for (int i = 0; i < PointToDel.size(); i++)
+    {
+        if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
+        {
+            Delete_by_point_accurate(&Root_Node, PointToDel[i], true);
+        }
+        else
+        {
+            Operation_Logger_Type operation;
+            operation.point = PointToDel[i];
+            operation.op = DELETE_POINT;
+            pthread_mutex_lock(&working_flag_mutex);
+            Delete_by_point_accurate(&Root_Node, PointToDel[i], false);
+            if (rebuild_flag)
+            {
+                pthread_mutex_lock(&rebuild_logger_mutex_lock);
+                Rebuild_Logger.push(operation);
+                pthread_mutex_unlock(&rebuild_logger_mutex_lock);
+            }
+            pthread_mutex_unlock(&working_flag_mutex);
+        }
+    }
+    return;
+}
+
+template <typename PointType>
 int KD_TREE<PointType>::Delete_Point_Boxes(const vector<BoxPointType> &BoxPoints)
 {
     int tmp_counter = 0;
@@ -1022,6 +1050,68 @@ void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, const PointType &p
             }
             pthread_mutex_unlock(&working_flag_mutex);
         }
+    }
+    Update(*root);
+    if (Rebuild_Ptr != nullptr && *Rebuild_Ptr == *root && (*root)->TreeSize < Multi_Thread_Rebuild_Point_Num)
+        Rebuild_Ptr = nullptr;
+    bool need_rebuild = allow_rebuild & Criterion_Check((*root));
+    if (need_rebuild)
+        Rebuild(root);
+    if ((*root) != nullptr)
+        (*root)->working_flag = false;
+    return;
+}
+
+template <typename PointType>
+void KD_TREE<PointType>::Delete_by_point_accurate(KD_TREE_NODE **root, const PointType &point, const bool &allow_rebuild)
+{
+    if ((*root) == nullptr || (*root)->tree_deleted)
+        return;
+    (*root)->working_flag = true;
+    Push_Down(*root);
+    if (same_point((*root)->point, point) && !(*root)->point_deleted)
+    {
+        (*root)->point_deleted = true;
+        (*root)->invalid_point_num += 1;
+        if ((*root)->invalid_point_num == (*root)->TreeSize)
+            (*root)->tree_deleted = true;
+        return;
+    }
+    Operation_Logger_Type delete_log;
+    struct timespec Timeout;
+    delete_log.op = DELETE_POINT;
+    delete_log.point = point;
+    if ((Rebuild_Ptr == nullptr) || (*root)->left_son_ptr != *Rebuild_Ptr)
+    {
+        Delete_by_point_accurate(&(*root)->left_son_ptr, point, allow_rebuild);
+    }
+    else
+    {
+        pthread_mutex_lock(&working_flag_mutex);
+        Delete_by_point_accurate(&(*root)->left_son_ptr, point, false);
+        if (rebuild_flag)
+        {
+            pthread_mutex_lock(&rebuild_logger_mutex_lock);
+            Rebuild_Logger.push(delete_log);
+            pthread_mutex_unlock(&rebuild_logger_mutex_lock);
+        }
+        pthread_mutex_unlock(&working_flag_mutex);
+    }
+    if ((Rebuild_Ptr == nullptr) || (*root)->right_son_ptr != *Rebuild_Ptr)
+    {
+        Delete_by_point_accurate(&(*root)->right_son_ptr, point, allow_rebuild);
+    }
+    else
+    {
+        pthread_mutex_lock(&working_flag_mutex);
+        Delete_by_point_accurate(&(*root)->right_son_ptr, point, false);
+        if (rebuild_flag)
+        {
+            pthread_mutex_lock(&rebuild_logger_mutex_lock);
+            Rebuild_Logger.push(delete_log);
+            pthread_mutex_unlock(&rebuild_logger_mutex_lock);
+        }
+        pthread_mutex_unlock(&working_flag_mutex);
     }
     Update(*root);
     if (Rebuild_Ptr != nullptr && *Rebuild_Ptr == *root && (*root)->TreeSize < Multi_Thread_Rebuild_Point_Num)

@@ -300,6 +300,7 @@ private:
     void Rebuild(KD_TREE_NODE **root);
     int Delete_by_range(KD_TREE_NODE **root, const BoxPointType &boxpoint, const bool &allow_rebuild, const bool &is_downsample);
     void Delete_by_point(KD_TREE_NODE **root, const PointType &point, const bool &allow_rebuild);
+    void Delete_by_point_accurate(KD_TREE_NODE **root, const PointType &point, const bool &allow_rebuild);
     int Set_Covered_by_point(KD_TREE_NODE *root, const PointType &point);
     void Get_Points_Covered(KD_TREE_NODE *root, PointVector &Storage, const bool &get_covered_or_uncovered);
     void Add_by_point(KD_TREE_NODE **root, const PointType &point, const bool &allow_rebuild, const int &father_axis);
@@ -349,6 +350,7 @@ public:
     int Add_Points(const PointVector &PointToAdd, const bool &downsample_on);
     void Add_Point_Boxes(const vector<BoxPointType> &BoxPoints);
     void Delete_Points(const PointVector &PointToDel);
+    void Delete_Points_Accurate(const PointVector &PointToDel);
     int Delete_Point_Boxes(const vector<BoxPointType> &BoxPoints);
     void Set_Covered_Points(const PointVector &PointsCovered);
     void Get_Covered_Points(PointVector &Storage, const bool &get_covered_or_uncovered = true);

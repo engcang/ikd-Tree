@@ -29,4 +29,4 @@
 	+ Modify nothing but implementation of `Set_Covered_Points`
 + Solution2
 	+ Leave `BuildTree`, `Add_Points`, `Rebuild` (giving up)
-	+ Modify `Delete_Points` to search whole tree
+	+ Modify `Delete_Points` to search whole tree => `Delete_Points_Accurate`
