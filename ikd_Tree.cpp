@@ -491,6 +491,12 @@ void KD_TREE<PointType>::Radius_Search(const PointType &point, const float &radi
 }
 
 template <typename PointType>
+bool KD_TREE<PointType>::CollisionCheck(const PointType &point, const float &radius)
+{
+    return CollisionCheckRecursive(Root_Node, point, radius);
+}
+
+template <typename PointType>
 int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &downsample_on)
 {
     BoxPointType Box_of_Point;
@@ -1574,6 +1580,60 @@ void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, const PointType &p
         pthread_mutex_unlock(&search_flag_mutex);
     }    
     return;
+}
+
+template <typename PointType>
+bool KD_TREE<PointType>::CollisionCheckRecursive(KD_TREE_NODE *root, const PointType &point, const float &radius)
+{
+    if (root == nullptr)
+        return false;
+    Push_Down(root);
+    PointType range_center;
+    range_center.x = (root->node_range_x[0] + root->node_range_x[1]) * 0.5;
+    range_center.y = (root->node_range_y[0] + root->node_range_y[1]) * 0.5;
+    range_center.z = (root->node_range_z[0] + root->node_range_z[1]) * 0.5;
+    float dist = sqrt(calc_dist(range_center, point));
+    if (dist > radius + sqrt(root->radius_sq)) return false;
+    if (dist <= radius - sqrt(root->radius_sq)) 
+    {
+        return true;
+    }
+    if (!root->point_deleted && calc_dist(root->point, point) <= radius * radius){
+        return true;
+    }
+    if ((Rebuild_Ptr == nullptr) || root->left_son_ptr != *Rebuild_Ptr)
+    {
+        if (CollisionCheckRecursive(root->left_son_ptr, point, radius))
+        {
+            return true;
+        }
+    }
+    else
+    {
+        pthread_mutex_lock(&search_flag_mutex);
+        if (CollisionCheckRecursive(root->left_son_ptr, point, radius))
+        {
+            return true;
+        }
+        pthread_mutex_unlock(&search_flag_mutex);
+    }
+    if ((Rebuild_Ptr == nullptr) || root->right_son_ptr != *Rebuild_Ptr)
+    {
+        if (CollisionCheckRecursive(root->right_son_ptr, point, radius))
+        {
+            return true;
+        }
+    }
+    else
+    {
+        pthread_mutex_lock(&search_flag_mutex);
+        if (CollisionCheckRecursive(root->right_son_ptr, point, radius))
+        {
+            return true;
+        }
+        pthread_mutex_unlock(&search_flag_mutex);
+    }    
+    return false;
 }
 
 template <typename PointType>
