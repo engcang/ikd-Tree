@@ -30,3 +30,4 @@
 + Solution2
 	+ Leave `BuildTree`, `Add_Points`, `Rebuild` (giving up)
 	+ Modify `Delete_Points` to search whole tree => `Delete_Points_Accurate`
+	+ Added `Delete_Points_Downsample` which deletes the all points within the voxel

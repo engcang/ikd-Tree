@@ -289,6 +289,7 @@ private:
     float delete_criterion_param = 0.5f;
     float balance_criterion_param = 0.7f;
     float downsample_size = 0.2f;
+    float inv_downsample_size = 1.0f;
     bool Delete_Storage_Disabled = false;
     KD_TREE_NODE *STATIC_ROOT_NODE = nullptr;
     PointVector Points_deleted;
@@ -336,6 +337,7 @@ public:
     void set_downsample_param(const float &downsample_param)
     {
         downsample_size = downsample_param;
+        inv_downsample_size = 1.0f / downsample_size;
         return;
     }
     void InitializeKDTree(float delete_param = 0.5, float balance_param = 0.7, float box_length = 0.2);
@@ -350,6 +352,7 @@ public:
     int Add_Points(const PointVector &PointToAdd, const bool &downsample_on);
     void Add_Point_Boxes(const vector<BoxPointType> &BoxPoints);
     void Delete_Points(const PointVector &PointToDel);
+    void Delete_Points_Downsample(const PointVector &PointToDel);
     void Delete_Points_Accurate(const PointVector &PointToDel);
     int Delete_Point_Boxes(const vector<BoxPointType> &BoxPoints);
     void Set_Covered_Points(const PointVector &PointsCovered);

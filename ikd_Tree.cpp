@@ -17,6 +17,7 @@ KD_TREE<PointType>::KD_TREE(float delete_param, float balance_param, float box_l
     delete_criterion_param = delete_param;
     balance_criterion_param = balance_param;
     downsample_size = box_length;
+    inv_downsample_size = 1.0f / downsample_size;
     Rebuild_Logger.clear();
     termination_flag = false;
     start_thread();
@@ -506,15 +507,9 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
             PointVector PointToAddDownsampled;
             for (int i = 0; i < PointToBuild.size(); ++i)
             {
-                Box_of_Point.vertex_min[0] = floor(PointToBuild[i].x / downsample_size) * downsample_size;
-                Box_of_Point.vertex_max[0] = Box_of_Point.vertex_min[0] + downsample_size;
-                Box_of_Point.vertex_min[1] = floor(PointToBuild[i].y / downsample_size) * downsample_size;
-                Box_of_Point.vertex_max[1] = Box_of_Point.vertex_min[1] + downsample_size;
-                Box_of_Point.vertex_min[2] = floor(PointToBuild[i].z / downsample_size) * downsample_size;
-                Box_of_Point.vertex_max[2] = Box_of_Point.vertex_min[2] + downsample_size;
-                mid_point.x = Box_of_Point.vertex_min[0] + (Box_of_Point.vertex_max[0] - Box_of_Point.vertex_min[0]) / 2.0;
-                mid_point.y = Box_of_Point.vertex_min[1] + (Box_of_Point.vertex_max[1] - Box_of_Point.vertex_min[1]) / 2.0;
-                mid_point.z = Box_of_Point.vertex_min[2] + (Box_of_Point.vertex_max[2] - Box_of_Point.vertex_min[2]) / 2.0;
+                mid_point.x = (int(PointToBuild[i].x * inv_downsample_size) - signbit(PointToBuild[i].x) + 0.5) * downsample_size;
+                mid_point.y = (int(PointToBuild[i].y * inv_downsample_size) - signbit(PointToBuild[i].y) + 0.5) * downsample_size;
+                mid_point.z = (int(PointToBuild[i].z * inv_downsample_size) - signbit(PointToBuild[i].z) + 0.5) * downsample_size;
                 // if current mid_point is not already in the vector, push
                 if (PointToAddDownsampled.end() == (find_if(PointToAddDownsampled.begin(), PointToAddDownsampled.end(), 
                     [&](PointType pt){return same_point(mid_point, pt);})))
@@ -531,15 +526,19 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
     {
         if (downsample_switch)
         {
-            Box_of_Point.vertex_min[0] = floor(PointToAdd[i].x / downsample_size) * downsample_size;
+            int x_key = int(PointToAdd[i].x * inv_downsample_size) - signbit(PointToAdd[i].x);
+            int y_key = int(PointToAdd[i].y * inv_downsample_size) - signbit(PointToAdd[i].y);
+            int z_key = int(PointToAdd[i].z * inv_downsample_size) - signbit(PointToAdd[i].z);
+
+            Box_of_Point.vertex_min[0] = x_key * downsample_size;
             Box_of_Point.vertex_max[0] = Box_of_Point.vertex_min[0] + downsample_size;
-            Box_of_Point.vertex_min[1] = floor(PointToAdd[i].y / downsample_size) * downsample_size;
+            Box_of_Point.vertex_min[1] = y_key * downsample_size;
             Box_of_Point.vertex_max[1] = Box_of_Point.vertex_min[1] + downsample_size;
-            Box_of_Point.vertex_min[2] = floor(PointToAdd[i].z / downsample_size) * downsample_size;
+            Box_of_Point.vertex_min[2] = z_key * downsample_size;
             Box_of_Point.vertex_max[2] = Box_of_Point.vertex_min[2] + downsample_size;
-            mid_point.x = Box_of_Point.vertex_min[0] + (Box_of_Point.vertex_max[0] - Box_of_Point.vertex_min[0]) / 2.0;
-            mid_point.y = Box_of_Point.vertex_min[1] + (Box_of_Point.vertex_max[1] - Box_of_Point.vertex_min[1]) / 2.0;
-            mid_point.z = Box_of_Point.vertex_min[2] + (Box_of_Point.vertex_max[2] - Box_of_Point.vertex_min[2]) / 2.0;
+            mid_point.x = (x_key + 0.5) * downsample_size;
+            mid_point.y = (y_key + 0.5) * downsample_size;
+            mid_point.z = (z_key + 0.5) * downsample_size;
             PointVector().swap(Downsample_Storage);
             Search_by_range(Root_Node, Box_of_Point, Downsample_Storage);
             
@@ -772,6 +771,46 @@ int KD_TREE<PointType>::Delete_Point_Boxes(const vector<BoxPointType> &BoxPoints
         }
     }
     return tmp_counter;
+}
+
+template <typename PointType>
+void KD_TREE<PointType>::Delete_Points_Downsample(const PointVector &PointToDel)
+{
+    int tmp_counter = 0;
+    for (int i = 0; i < PointToDel.size(); i++)
+    {
+        BoxPointType Box_of_Point;
+        int x_key = int(PointToDel[i].x * inv_downsample_size) - signbit(PointToDel[i].x);
+        int y_key = int(PointToDel[i].y * inv_downsample_size) - signbit(PointToDel[i].y);
+        int z_key = int(PointToDel[i].z * inv_downsample_size) - signbit(PointToDel[i].z);
+        Box_of_Point.vertex_min[0] = x_key * downsample_size;
+        Box_of_Point.vertex_max[0] = Box_of_Point.vertex_min[0] + downsample_size;
+        Box_of_Point.vertex_min[1] = y_key * downsample_size;
+        Box_of_Point.vertex_max[1] = Box_of_Point.vertex_min[1] + downsample_size;
+        Box_of_Point.vertex_min[2] = z_key * downsample_size;
+        Box_of_Point.vertex_max[2] = Box_of_Point.vertex_min[2] + downsample_size;
+
+        if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
+        {
+            tmp_counter += Delete_by_range(&Root_Node, Box_of_Point, true, false);
+        }
+        else
+        {
+            Operation_Logger_Type operation;
+            operation.boxpoint = Box_of_Point;
+            operation.op = DELETE_BOX;
+            pthread_mutex_lock(&working_flag_mutex);
+            tmp_counter += Delete_by_range(&Root_Node, Box_of_Point, false, false);
+            if (rebuild_flag)
+            {
+                pthread_mutex_lock(&rebuild_logger_mutex_lock);
+                Rebuild_Logger.push(operation);
+                pthread_mutex_unlock(&rebuild_logger_mutex_lock);
+            }
+            pthread_mutex_unlock(&working_flag_mutex);
+        }
+    }
+    return;
 }
 
 template <typename PointType>
