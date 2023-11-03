@@ -1611,11 +1611,12 @@ bool KD_TREE<PointType>::CollisionCheckRecursive(KD_TREE_NODE *root, const Point
     else
     {
         pthread_mutex_lock(&search_flag_mutex);
-        if (CollisionCheckRecursive(root->left_son_ptr, point, radius))
+        bool collision_ = CollisionCheckRecursive(root->left_son_ptr, point, radius);
+        pthread_mutex_unlock(&search_flag_mutex);
+        if (collision_)
         {
             return true;
         }
-        pthread_mutex_unlock(&search_flag_mutex);
     }
     if ((Rebuild_Ptr == nullptr) || root->right_son_ptr != *Rebuild_Ptr)
     {
@@ -1627,11 +1628,12 @@ bool KD_TREE<PointType>::CollisionCheckRecursive(KD_TREE_NODE *root, const Point
     else
     {
         pthread_mutex_lock(&search_flag_mutex);
-        if (CollisionCheckRecursive(root->right_son_ptr, point, radius))
+        bool collision_ = CollisionCheckRecursive(root->right_son_ptr, point, radius);
+        pthread_mutex_unlock(&search_flag_mutex);
+        if (collision_)
         {
             return true;
         }
-        pthread_mutex_unlock(&search_flag_mutex);
     }    
     return false;
 }
