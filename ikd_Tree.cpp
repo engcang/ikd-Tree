@@ -33,6 +33,12 @@ KD_TREE<PointType>::~KD_TREE()
     Rebuild_Logger.clear();
 }
 
+template <typename PointType>
+void KD_TREE<PointType>::Delete_Ikd_Tree()
+{
+    delete_tree_nodes(&Root_Node);
+    return;
+}
 
 
 template <typename PointType>

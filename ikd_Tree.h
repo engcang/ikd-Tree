@@ -361,6 +361,7 @@ public:
     void Get_Covered_Points(PointVector &Storage, const bool &get_covered_or_uncovered = true);
     void flatten(KD_TREE_NODE *root, PointVector &Storage, delete_point_storage_set storage_type);
     void acquire_removed_points(PointVector &removed_points);
+    void Delete_Ikd_Tree();
     BoxPointType tree_range();
     PointVector PCL_Storage;
     KD_TREE_NODE *Root_Node = nullptr;
@@ -369,4 +370,3 @@ public:
 
 // template <typename PointType>
 // PointType KD_TREE<PointType>::zeroP = PointType(0,0,0);
-
