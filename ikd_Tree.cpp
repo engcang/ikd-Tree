@@ -6,18 +6,13 @@ Author: Yixi Cai
 email: yixicai@connect.hku.hk
 */
 
-/*
-Modified by: Eungchang Mason Lee
-https://github.com/engcang/ikd-Tree.git
-*/
-
 template <typename PointType>
 KD_TREE<PointType>::KD_TREE(float delete_param, float balance_param, float box_length)
 {
     delete_criterion_param = delete_param;
     balance_criterion_param = balance_param;
     downsample_size = box_length;
-    inv_downsample_size = 1.0f / downsample_size;
+    inv_downsample_size = 1.0f/box_length;
     Rebuild_Logger.clear();
     termination_flag = false;
     start_thread();
@@ -33,12 +28,6 @@ KD_TREE<PointType>::~KD_TREE()
     Rebuild_Logger.clear();
 }
 
-template <typename PointType>
-void KD_TREE<PointType>::Delete_Ikd_Tree()
-{
-    delete_tree_nodes(&Root_Node);
-    return;
-}
 
 
 template <typename PointType>
@@ -47,7 +36,6 @@ void KD_TREE<PointType>::InitializeKDTree(float delete_param, float balance_para
     Set_delete_criterion_param(delete_param);
     Set_balance_criterion_param(balance_param);
     set_downsample_param(box_length);
-    return;
 }
 
 template <typename PointType>
@@ -77,7 +65,6 @@ void KD_TREE<PointType>::InitTreeNode(KD_TREE_NODE *root)
     root->point_downsample_deleted = false;
     root->working_flag = false;
     pthread_mutex_init(&(root->push_down_mutex_lock), NULL);
-    return;
 }
 
 template <typename PointType>
@@ -201,7 +188,6 @@ void KD_TREE<PointType>::root_alpha(float &alpha_bal, float &alpha_del)
             return;
         }
     }
-    return;
 }
 
 template <typename PointType>
@@ -215,7 +201,6 @@ void KD_TREE<PointType>::start_thread()
     pthread_mutex_init(&search_flag_mutex, NULL);
     pthread_create(&rebuild_thread, NULL, multi_thread_ptr, (void *)this);
     printf("Multi thread started \n");
-    return;
 }
 
 template <typename PointType>
@@ -232,7 +217,6 @@ void KD_TREE<PointType>::stop_thread()
     pthread_mutex_destroy(&points_deleted_rebuild_mutex_lock);
     pthread_mutex_destroy(&working_flag_mutex);
     pthread_mutex_destroy(&search_flag_mutex);
-    return;
 }
 
 template <typename PointType>
@@ -381,7 +365,6 @@ void KD_TREE<PointType>::multi_thread_rebuild()
         usleep(100);
     }
     printf("Rebuild thread terminated normally\n");
-    return;
 }
 
 template <typename PointType>
@@ -421,11 +404,10 @@ void KD_TREE<PointType>::run_operation(KD_TREE_NODE **root, Operation_Logger_Typ
     default:
         break;
     }
-    return;
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Build(PointVector &point_cloud)
+void KD_TREE<PointType>::Build(PointVector point_cloud)
 {
     if (Root_Node != nullptr)
     {
@@ -439,11 +421,10 @@ void KD_TREE<PointType>::Build(PointVector &point_cloud)
     Update(STATIC_ROOT_NODE);
     STATIC_ROOT_NODE->TreeSize = 0;
     Root_Node = STATIC_ROOT_NODE->left_son_ptr;
-    return;
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Nearest_Search(const PointType &point, const int &k_nearest, PointVector &Nearest_Points, vector<float> &Point_Distance, const float &max_dist)
+void KD_TREE<PointType>::Nearest_Search(PointType point, int k_nearest, PointVector &Nearest_Points, vector<float> &Point_Distance, float max_dist)
 {
     MANUAL_HEAP q(2 * k_nearest);
     q.clear();
@@ -485,100 +466,85 @@ void KD_TREE<PointType>::Box_Search(const BoxPointType &Box_of_Point, PointVecto
 {
     Storage.clear();
     Search_by_range(Root_Node, Box_of_Point, Storage);
-    return;
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Radius_Search(const PointType &point, const float &radius, PointVector &Storage)
+void KD_TREE<PointType>::Radius_Search(PointType point, const float radius, PointVector &Storage)
 {
     Storage.clear();
     Search_by_radius(Root_Node, point, radius, Storage);
-    return;
 }
 
 template <typename PointType>
-bool KD_TREE<PointType>::CollisionCheck(const PointType &point, const float &radius)
+int KD_TREE<PointType>::Add_Points(PointVector &PointToAdd, bool downsample_on)
 {
-    return CollisionCheckRecursive(Root_Node, point, radius);
-}
-
-template <typename PointType>
-int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &downsample_on)
-{
+    int NewPointSize = PointToAdd.size();
+    int tree_size = size();
     BoxPointType Box_of_Point;
-    PointType mid_point;
+    PointType downsample_result, mid_point;
     bool downsample_switch = downsample_on && DOWNSAMPLE_SWITCH;
+    float min_dist, tmp_dist;
     int tmp_counter = 0;
-
-    // If not built, Build first
-    if (Root_Node == nullptr)
-    {
-        PointVector PointToBuild = PointToAdd;
-        if (downsample_switch) //Input points for Build is also modified to use grid-aligned Downsampling
-        {
-            PointVector PointToAddDownsampled;
-            for (int i = 0; i < PointToBuild.size(); ++i)
-            {
-                mid_point.x = (int(PointToBuild[i].x * inv_downsample_size) - signbit(PointToBuild[i].x) + 0.5) * downsample_size;
-                mid_point.y = (int(PointToBuild[i].y * inv_downsample_size) - signbit(PointToBuild[i].y) + 0.5) * downsample_size;
-                mid_point.z = (int(PointToBuild[i].z * inv_downsample_size) - signbit(PointToBuild[i].z) + 0.5) * downsample_size;
-                // if current mid_point is not already in the vector, push
-                if (PointToAddDownsampled.end() == (find_if(PointToAddDownsampled.begin(), PointToAddDownsampled.end(), 
-                    [&](PointType pt){return same_point(mid_point, pt);})))
-                    PointToAddDownsampled.push_back(mid_point);
-            }
-            PointToAddDownsampled.swap(PointToBuild);
-        }
-        Build(PointToBuild);
-        return 0;
-    }
-
-    // If built, Add points
     for (int i = 0; i < PointToAdd.size(); i++)
     {
         if (downsample_switch)
         {
-            int x_key = int(PointToAdd[i].x * inv_downsample_size) - signbit(PointToAdd[i].x);
-            int y_key = int(PointToAdd[i].y * inv_downsample_size) - signbit(PointToAdd[i].y);
-            int z_key = int(PointToAdd[i].z * inv_downsample_size) - signbit(PointToAdd[i].z);
-
-            Box_of_Point.vertex_min[0] = x_key * downsample_size;
+            Box_of_Point.vertex_min[0] = floor(PointToAdd[i].x / downsample_size) * downsample_size;
             Box_of_Point.vertex_max[0] = Box_of_Point.vertex_min[0] + downsample_size;
-            Box_of_Point.vertex_min[1] = y_key * downsample_size;
+            Box_of_Point.vertex_min[1] = floor(PointToAdd[i].y / downsample_size) * downsample_size;
             Box_of_Point.vertex_max[1] = Box_of_Point.vertex_min[1] + downsample_size;
-            Box_of_Point.vertex_min[2] = z_key * downsample_size;
+            Box_of_Point.vertex_min[2] = floor(PointToAdd[i].z / downsample_size) * downsample_size;
             Box_of_Point.vertex_max[2] = Box_of_Point.vertex_min[2] + downsample_size;
-            mid_point.x = (x_key + 0.5) * downsample_size;
-            mid_point.y = (y_key + 0.5) * downsample_size;
-            mid_point.z = (z_key + 0.5) * downsample_size;
+            mid_point.x = Box_of_Point.vertex_min[0] + (Box_of_Point.vertex_max[0] - Box_of_Point.vertex_min[0]) / 2.0;
+            mid_point.y = Box_of_Point.vertex_min[1] + (Box_of_Point.vertex_max[1] - Box_of_Point.vertex_min[1]) / 2.0;
+            mid_point.z = Box_of_Point.vertex_min[2] + (Box_of_Point.vertex_max[2] - Box_of_Point.vertex_min[2]) / 2.0;
             PointVector().swap(Downsample_Storage);
             Search_by_range(Root_Node, Box_of_Point, Downsample_Storage);
-            
-            if (Downsample_Storage.size() > 0) // a point already exists in the voxel grid, do nothing
-                continue;
-            else // add a point (not raw, but as the mid point (centroid) of voxel grid)
+            min_dist = calc_dist(PointToAdd[i], mid_point);
+            downsample_result = PointToAdd[i];
+            for (int index = 0; index < Downsample_Storage.size(); index++)
             {
-                if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
+                tmp_dist = calc_dist(Downsample_Storage[index], mid_point);
+                if (tmp_dist < min_dist)
                 {
-                    Add_by_point(&Root_Node, mid_point, true, Root_Node->division_axis);
+                    min_dist = tmp_dist;
+                    downsample_result = Downsample_Storage[index];
+                }
+            }
+            if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
+            {
+                if (Downsample_Storage.size() > 1 || same_point(PointToAdd[i], downsample_result))
+                {
+                    if (Downsample_Storage.size() > 0)
+                        Delete_by_range(&Root_Node, Box_of_Point, true, true);
+                    Add_by_point(&Root_Node, downsample_result, true, Root_Node->division_axis);
                     tmp_counter++;
                 }
-                else
+            }
+            else
+            {
+                if (Downsample_Storage.size() > 1 || same_point(PointToAdd[i], downsample_result))
                 {
-                    Operation_Logger_Type operation;
-                    operation.point = mid_point;
+                    Operation_Logger_Type operation_delete, operation;
+                    operation_delete.boxpoint = Box_of_Point;
+                    operation_delete.op = DOWNSAMPLE_DELETE;
+                    operation.point = downsample_result;
                     operation.op = ADD_POINT;
                     pthread_mutex_lock(&working_flag_mutex);
-                    Add_by_point(&Root_Node, mid_point, false, Root_Node->division_axis);
+                    if (Downsample_Storage.size() > 0)
+                        Delete_by_range(&Root_Node, Box_of_Point, false, true);
+                    Add_by_point(&Root_Node, downsample_result, false, Root_Node->division_axis);
                     tmp_counter++;
                     if (rebuild_flag)
                     {
                         pthread_mutex_lock(&rebuild_logger_mutex_lock);
+                        if (Downsample_Storage.size() > 0)
+                            Rebuild_Logger.push(operation_delete);
                         Rebuild_Logger.push(operation);
                         pthread_mutex_unlock(&rebuild_logger_mutex_lock);
                     }
                     pthread_mutex_unlock(&working_flag_mutex);
-                }
+                };
             }
         }
         else
@@ -608,7 +574,7 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Add_Point_Boxes(const vector<BoxPointType> &BoxPoints)
+void KD_TREE<PointType>::Add_Point_Boxes(vector<BoxPointType> &BoxPoints)
 {
     for (int i = 0; i < BoxPoints.size(); i++)
     {
@@ -636,72 +602,7 @@ void KD_TREE<PointType>::Add_Point_Boxes(const vector<BoxPointType> &BoxPoints)
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Get_Covered_Points(PointVector &Storage, const bool &get_covered_or_uncovered)
-{
-    Storage.clear();
-    Get_Points_Covered(Root_Node, Storage, get_covered_or_uncovered);
-    return;
-}
-
-template <typename PointType>
-void KD_TREE<PointType>::Get_Points_Covered(KD_TREE_NODE *root, PointVector &Storage, const bool &get_covered_or_uncovered)
-{
-    if (root == nullptr)
-        return;
-    Push_Down(root);
-    if (!root->point_deleted && (root->point.covered==get_covered_or_uncovered))
-    {
-        Storage.push_back(root->point);
-    }
-    Get_Points_Covered(root->left_son_ptr, Storage, get_covered_or_uncovered);
-    Get_Points_Covered(root->right_son_ptr, Storage, get_covered_or_uncovered);
-    return;
-}
-
-template <typename PointType>
-int KD_TREE<PointType>::Set_Covered_by_point(KD_TREE_NODE *root, const PointType &point)
-{
-    if (root == nullptr)
-        return -1;
-    Push_Down(root);
-    if (same_point(root->point, point) && !root->point_deleted)
-    {
-        root->point.covered = true;
-        return 0;
-    }
-    else
-    {
-        // if ((root->division_axis == 0 && point.x < root->point.x) || (root->division_axis == 1 && point.y < root->point.y) || (root->division_axis == 2 && point.z < root->point.z))
-        // {
-        //     if (Set_Covered_by_point(root->left_son_ptr, point) == 0)
-        //         return 0;
-        // }
-        // else
-        // {            
-        //     if (Set_Covered_by_point(root->right_son_ptr, point) == 0)
-        //         return 0;
-        // }
-        if (Set_Covered_by_point(root->left_son_ptr, point) == 0)
-            return 0;
-        else if (Set_Covered_by_point(root->right_son_ptr, point) == 0)
-            return 0;
-    }
-    return -1;
-}
-
-template <typename PointType>
-void KD_TREE<PointType>::Set_Covered_Points(const PointVector &PointsCovered)
-{
-    for (int i = 0; i < PointsCovered.size(); i++)
-    {
-        if (PointsCovered[i].covered) continue;
-        Set_Covered_by_point(Root_Node, PointsCovered[i]);
-    }
-    return;
-}
-
-template <typename PointType>
-void KD_TREE<PointType>::Delete_Points(const PointVector &PointToDel)
+void KD_TREE<PointType>::Delete_Points(PointVector &PointToDel)
 {
     for (int i = 0; i < PointToDel.size(); i++)
     {
@@ -729,35 +630,7 @@ void KD_TREE<PointType>::Delete_Points(const PointVector &PointToDel)
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Delete_Points_Accurate(const PointVector &PointToDel)
-{
-    for (int i = 0; i < PointToDel.size(); i++)
-    {
-        if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
-        {
-            Delete_by_point_accurate(&Root_Node, PointToDel[i], true);
-        }
-        else
-        {
-            Operation_Logger_Type operation;
-            operation.point = PointToDel[i];
-            operation.op = DELETE_POINT;
-            pthread_mutex_lock(&working_flag_mutex);
-            Delete_by_point_accurate(&Root_Node, PointToDel[i], false);
-            if (rebuild_flag)
-            {
-                pthread_mutex_lock(&rebuild_logger_mutex_lock);
-                Rebuild_Logger.push(operation);
-                pthread_mutex_unlock(&rebuild_logger_mutex_lock);
-            }
-            pthread_mutex_unlock(&working_flag_mutex);
-        }
-    }
-    return;
-}
-
-template <typename PointType>
-int KD_TREE<PointType>::Delete_Point_Boxes(const vector<BoxPointType> &BoxPoints)
+int KD_TREE<PointType>::Delete_Point_Boxes(vector<BoxPointType> &BoxPoints)
 {
     int tmp_counter = 0;
     for (int i = 0; i < BoxPoints.size(); i++)
@@ -844,7 +717,7 @@ void KD_TREE<PointType>::acquire_removed_points(PointVector &removed_points)
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::BuildTree(KD_TREE_NODE **root, const int &l, const int &r, PointVector &Storage)
+void KD_TREE<PointType>::BuildTree(KD_TREE_NODE **root, int l, int r, PointVector &Storage)
 {
     if (l > r)
         return;
@@ -890,23 +763,6 @@ void KD_TREE<PointType>::BuildTree(KD_TREE_NODE **root, const int &l, const int 
         nth_element(begin(Storage) + l, begin(Storage) + mid, begin(Storage) + r + 1, point_cmp_x);
         break;
     }
-    // int split_index = partition(begin(Storage) + mid + 1, begin(Storage) + r + 1, [&](PointType p)
-            // {return (Storage[mid].x==p.x && Storage[mid].y==p.y && Storage[mid].z==p.z);}) - begin(Storage) - 1;
-    // (*root)->point = Storage[split_index];
-    // KD_TREE_NODE *left_son = nullptr, *right_son = nullptr;
-    // if (l != split_index)
-    // {
-    //     int left_son_rightmost_index = 0;
-    //     if (split_index != 0)
-    //         left_son_rightmost_index = split_index - 1;
-    //     BuildTree(&left_son, l, left_son_rightmost_index, Storage);
-    //     (*root)->left_son_ptr = left_son;
-    // }
-    // if (r != split_index)
-    // {
-    //     BuildTree(&right_son, split_index + 1, r, Storage);
-    //     (*root)->right_son_ptr = right_son;
-    // }
     (*root)->point = Storage[mid];
     KD_TREE_NODE *left_son = nullptr, *right_son = nullptr;
     BuildTree(&left_son, l, mid - 1, Storage);
@@ -949,17 +805,7 @@ void KD_TREE<PointType>::Rebuild(KD_TREE_NODE **root)
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Reconstruct(PointVector &PointToRecon)
-{
-    delete_tree_nodes(&Root_Node);
-    PointVector().swap(PCL_Storage);
-    Rebuild_Logger.clear();
-    Build(PointToRecon);
-    return;
-}
-
-template <typename PointType>
-int KD_TREE<PointType>::Delete_by_range(KD_TREE_NODE **root, const BoxPointType &boxpoint, const bool &allow_rebuild, const bool &is_downsample)
+int KD_TREE<PointType>::Delete_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild, bool is_downsample)
 {
     if ((*root) == nullptr || (*root)->tree_deleted)
         return 0;
@@ -1046,7 +892,7 @@ int KD_TREE<PointType>::Delete_by_range(KD_TREE_NODE **root, const BoxPointType 
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, const PointType &point, const bool &allow_rebuild)
+void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild)
 {
     if ((*root) == nullptr || (*root)->tree_deleted)
         return;
@@ -1114,69 +960,7 @@ void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, const PointType &p
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Delete_by_point_accurate(KD_TREE_NODE **root, const PointType &point, const bool &allow_rebuild)
-{
-    if ((*root) == nullptr || (*root)->tree_deleted)
-        return;
-    (*root)->working_flag = true;
-    Push_Down(*root);
-    if (same_point((*root)->point, point) && !(*root)->point_deleted)
-    {
-        (*root)->point_deleted = true;
-        (*root)->invalid_point_num += 1;
-        if ((*root)->invalid_point_num == (*root)->TreeSize)
-            (*root)->tree_deleted = true;
-        return;
-    }
-    Operation_Logger_Type delete_log;
-    struct timespec Timeout;
-    delete_log.op = DELETE_POINT;
-    delete_log.point = point;
-    if ((Rebuild_Ptr == nullptr) || (*root)->left_son_ptr != *Rebuild_Ptr)
-    {
-        Delete_by_point_accurate(&(*root)->left_son_ptr, point, allow_rebuild);
-    }
-    else
-    {
-        pthread_mutex_lock(&working_flag_mutex);
-        Delete_by_point_accurate(&(*root)->left_son_ptr, point, false);
-        if (rebuild_flag)
-        {
-            pthread_mutex_lock(&rebuild_logger_mutex_lock);
-            Rebuild_Logger.push(delete_log);
-            pthread_mutex_unlock(&rebuild_logger_mutex_lock);
-        }
-        pthread_mutex_unlock(&working_flag_mutex);
-    }
-    if ((Rebuild_Ptr == nullptr) || (*root)->right_son_ptr != *Rebuild_Ptr)
-    {
-        Delete_by_point_accurate(&(*root)->right_son_ptr, point, allow_rebuild);
-    }
-    else
-    {
-        pthread_mutex_lock(&working_flag_mutex);
-        Delete_by_point_accurate(&(*root)->right_son_ptr, point, false);
-        if (rebuild_flag)
-        {
-            pthread_mutex_lock(&rebuild_logger_mutex_lock);
-            Rebuild_Logger.push(delete_log);
-            pthread_mutex_unlock(&rebuild_logger_mutex_lock);
-        }
-        pthread_mutex_unlock(&working_flag_mutex);
-    }
-    Update(*root);
-    if (Rebuild_Ptr != nullptr && *Rebuild_Ptr == *root && (*root)->TreeSize < Multi_Thread_Rebuild_Point_Num)
-        Rebuild_Ptr = nullptr;
-    bool need_rebuild = allow_rebuild & Criterion_Check((*root));
-    if (need_rebuild)
-        Rebuild(root);
-    if ((*root) != nullptr)
-        (*root)->working_flag = false;
-    return;
-}
-
-template <typename PointType>
-void KD_TREE<PointType>::Add_by_range(KD_TREE_NODE **root, const BoxPointType &boxpoint, const bool &allow_rebuild)
+void KD_TREE<PointType>::Add_by_range(KD_TREE_NODE **root, BoxPointType boxpoint, bool allow_rebuild)
 {
     if ((*root) == nullptr)
         return;
@@ -1249,7 +1033,7 @@ void KD_TREE<PointType>::Add_by_range(KD_TREE_NODE **root, const BoxPointType &b
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Add_by_point(KD_TREE_NODE **root, const PointType &point, const bool &allow_rebuild, const int &father_axis)
+void KD_TREE<PointType>::Add_by_point(KD_TREE_NODE **root, PointType point, bool allow_rebuild, int father_axis)
 {
     if (*root == nullptr)
     {
@@ -1316,7 +1100,7 @@ void KD_TREE<PointType>::Add_by_point(KD_TREE_NODE **root, const PointType &poin
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Search(KD_TREE_NODE *root, const int &k_nearest, const PointType &point, MANUAL_HEAP &q, const float &max_dist)
+void KD_TREE<PointType>::Search(KD_TREE_NODE *root, int k_nearest, PointType point, MANUAL_HEAP &q, float max_dist)
 {
     if (root == nullptr || root->tree_deleted)
         return;
@@ -1501,7 +1285,7 @@ void KD_TREE<PointType>::Search(KD_TREE_NODE *root, const int &k_nearest, const 
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, const BoxPointType &boxpoint, PointVector &Storage)
+void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, BoxPointType boxpoint, PointVector &Storage)
 {
     if (root == nullptr)
         return;
@@ -1546,7 +1330,7 @@ void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, const BoxPointType 
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, const PointType &point, const float &radius, PointVector &Storage)
+void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, PointType point, float radius, PointVector &Storage)
 {
     if (root == nullptr)
         return;
@@ -1586,62 +1370,6 @@ void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, const PointType &p
         pthread_mutex_unlock(&search_flag_mutex);
     }    
     return;
-}
-
-template <typename PointType>
-bool KD_TREE<PointType>::CollisionCheckRecursive(KD_TREE_NODE *root, const PointType &point, const float &radius)
-{
-    if (root == nullptr)
-        return false;
-    Push_Down(root);
-    PointType range_center;
-    range_center.x = (root->node_range_x[0] + root->node_range_x[1]) * 0.5;
-    range_center.y = (root->node_range_y[0] + root->node_range_y[1]) * 0.5;
-    range_center.z = (root->node_range_z[0] + root->node_range_z[1]) * 0.5;
-    float dist = sqrt(calc_dist(range_center, point));
-    if (dist > radius + sqrt(root->radius_sq)) return false;
-    if (dist <= radius - sqrt(root->radius_sq)) 
-    {
-        return true;
-    }
-    if (!root->point_deleted && calc_dist(root->point, point) <= radius * radius){
-        return true;
-    }
-    if ((Rebuild_Ptr == nullptr) || root->left_son_ptr != *Rebuild_Ptr)
-    {
-        if (CollisionCheckRecursive(root->left_son_ptr, point, radius))
-        {
-            return true;
-        }
-    }
-    else
-    {
-        pthread_mutex_lock(&search_flag_mutex);
-        bool collision_ = CollisionCheckRecursive(root->left_son_ptr, point, radius);
-        pthread_mutex_unlock(&search_flag_mutex);
-        if (collision_)
-        {
-            return true;
-        }
-    }
-    if ((Rebuild_Ptr == nullptr) || root->right_son_ptr != *Rebuild_Ptr)
-    {
-        if (CollisionCheckRecursive(root->right_son_ptr, point, radius))
-        {
-            return true;
-        }
-    }
-    else
-    {
-        pthread_mutex_lock(&search_flag_mutex);
-        bool collision_ = CollisionCheckRecursive(root->right_son_ptr, point, radius);
-        pthread_mutex_unlock(&search_flag_mutex);
-        if (collision_)
-        {
-            return true;
-        }
-    }    
-    return false;
 }
 
 template <typename PointType>
@@ -1987,13 +1715,13 @@ void KD_TREE<PointType>::delete_tree_nodes(KD_TREE_NODE **root)
 }
 
 template <typename PointType>
-bool KD_TREE<PointType>::same_point(const PointType &a, const PointType &b)
+bool KD_TREE<PointType>::same_point(PointType a, PointType b)
 {
     return (fabs(a.x - b.x) < EPSS && fabs(a.y - b.y) < EPSS && fabs(a.z - b.z) < EPSS);
 }
 
 template <typename PointType>
-float KD_TREE<PointType>::calc_dist(const PointType &a, const PointType &b)
+float KD_TREE<PointType>::calc_dist(PointType a, PointType b)
 {
     float dist = 0.0f;
     dist = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) + (a.z - b.z) * (a.z - b.z);
@@ -2001,7 +1729,7 @@ float KD_TREE<PointType>::calc_dist(const PointType &a, const PointType &b)
 }
 
 template <typename PointType>
-float KD_TREE<PointType>::calc_box_dist(KD_TREE_NODE *node, const PointType &point)
+float KD_TREE<PointType>::calc_box_dist(KD_TREE_NODE *node, PointType point)
 {
     if (node == nullptr)
         return INFINITY;
@@ -2021,12 +1749,20 @@ float KD_TREE<PointType>::calc_box_dist(KD_TREE_NODE *node, const PointType &poi
     return min_dist;
 }
 template <typename PointType>
-bool KD_TREE<PointType>::point_cmp_x(const PointType &a, const PointType &b) { return a.x < b.x; }
+bool KD_TREE<PointType>::point_cmp_x(PointType a, PointType b) { return a.x < b.x; }
 template <typename PointType>
-bool KD_TREE<PointType>::point_cmp_y(const PointType &a, const PointType &b) { return a.y < b.y; }
+bool KD_TREE<PointType>::point_cmp_y(PointType a, PointType b) { return a.y < b.y; }
 template <typename PointType>
-bool KD_TREE<PointType>::point_cmp_z(const PointType &a, const PointType &b) { return a.z < b.z; }
+bool KD_TREE<PointType>::point_cmp_z(PointType a, PointType b) { return a.z < b.z; }
+
+// Manual heap
+
+
+
+// manual queue
 
 
 // Manual Instatiations
-template class KD_TREE<PointType_Coverage>;
+template class KD_TREE<pcl::PointXYZ>;
+template class KD_TREE<pcl::PointXYZI>;
+template class KD_TREE<pcl::PointXYZINormal>;
