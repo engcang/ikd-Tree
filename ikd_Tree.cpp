@@ -507,14 +507,13 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
 {
     BoxPointType Box_of_Point;
     PointType mid_point;
-    bool downsample_switch = downsample_on && DOWNSAMPLE_SWITCH;
     int tmp_counter = 0;
 
     // If not built, Build first
     if (Root_Node == nullptr)
     {
         PointVector PointToBuild = PointToAdd;
-        if (downsample_switch) //Input points for Build is also modified to use grid-aligned Downsampling
+        if (downsample_on) //Input points for Build is also modified to use grid-aligned Downsampling
         {
             PointVector PointToAddDownsampled;
             for (int i = 0; i < PointToBuild.size(); ++i)
@@ -536,7 +535,7 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
     // If built, Add points
     for (int i = 0; i < PointToAdd.size(); i++)
     {
-        if (downsample_switch)
+        if (downsample_on)
         {
             int x_key = int(PointToAdd[i].x * inv_downsample_size) - signbit(PointToAdd[i].x);
             int y_key = int(PointToAdd[i].y * inv_downsample_size) - signbit(PointToAdd[i].y);
