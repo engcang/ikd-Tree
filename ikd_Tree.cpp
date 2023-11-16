@@ -560,7 +560,7 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
                 }
                 if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
                 {
-                    if (!same_point(PointToAdd[i], downsample_result))
+                    if (same_point(PointToAdd[i], downsample_result))
                     {
                         Delete_by_range(&Root_Node, Box_of_Point, true, true);
                     }
@@ -575,7 +575,7 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
                     operation.point = downsample_result;
                     operation.op = ADD_POINT;
                     pthread_mutex_lock(&working_flag_mutex);
-                    if (!same_point(PointToAdd[i], downsample_result))
+                    if (same_point(PointToAdd[i], downsample_result))
                     {
                         Delete_by_range(&Root_Node, Box_of_Point, false, true);
                     }
@@ -584,7 +584,7 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
                     if (rebuild_flag)
                     {
                         pthread_mutex_lock(&rebuild_logger_mutex_lock);
-                        if (!same_point(PointToAdd[i], downsample_result))
+                        if (same_point(PointToAdd[i], downsample_result))
                         {
                             Rebuild_Logger.push(operation_delete);
                         }
