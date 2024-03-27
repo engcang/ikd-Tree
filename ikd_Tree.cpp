@@ -497,6 +497,37 @@ void KD_TREE<PointType>::Radius_Search(const PointType &point, const float &radi
 }
 
 template <typename PointType>
+bool CollisionLineCheck(const PointType &point1, const PointType &point2, const float &radius)
+{
+    if (CollisionCheck(point1, radius)) return true;
+    if (CollisionCheck(point2, radius)) return true;
+
+    int steps = std::ceil(std::sqrt(calc_dist(point1, point2)) / downsample_size);
+    float stepX = (point2.x - point1.x) / steps;
+    float stepY = (point2.y - point1.y) / steps;
+    float stepZ = (point2.z - point1.z) / steps;
+    PointType searchPoint = point1;
+    for (int i = 1; i < steps; ++i)
+    {
+        searchPoint.x += stepX;
+        searchPoint.y += stepY;
+        searchPoint.z += stepZ;
+        if (CollisionCheck(searchPoint, radius))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+template <typename PointType>
+bool KD_TREE<PointType>::CollisionCheck(const PointType &point, const float &radius)
+{
+    return CollisionCheckRecursive(Root_Node, point, radius);
+}
+
+template <typename PointType>
 int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &downsample_on)
 {
     BoxPointType Box_of_Point;
@@ -509,11 +540,11 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
         if (downsample_on) //Input points for Build is also modified to use grid-aligned Downsampling
         {
             PointVector PointToAddDownsampled;
-            for (int i = 0; i < PointToBuild.size(); ++i)
+            for (size_t i = 0; i < PointToBuild.size(); ++i)
             {
-                mid_point.x = (int(PointToBuild[i].x * inv_downsample_size) - signbit(PointToBuild[i].x) + 0.5) * downsample_size;
-                mid_point.y = (int(PointToBuild[i].y * inv_downsample_size) - signbit(PointToBuild[i].y) + 0.5) * downsample_size;
-                mid_point.z = (int(PointToBuild[i].z * inv_downsample_size) - signbit(PointToBuild[i].z) + 0.5) * downsample_size;
+                mid_point.x = (int(PointToBuild[i].x * inv_downsample_size) - std::signbit(PointToBuild[i].x) + 0.5) * downsample_size;
+                mid_point.y = (int(PointToBuild[i].y * inv_downsample_size) - std::signbit(PointToBuild[i].y) + 0.5) * downsample_size;
+                mid_point.z = (int(PointToBuild[i].z * inv_downsample_size) - std::signbit(PointToBuild[i].z) + 0.5) * downsample_size;
                 // if current mid_point is not already in the vector, push
                 if (PointToAddDownsampled.end() == (find_if(PointToAddDownsampled.begin(), PointToAddDownsampled.end(), 
                     [&](PointType pt){return same_point(mid_point, pt);})))
@@ -526,13 +557,13 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
     }
 
     // If built, Add points
-    for (int i = 0; i < PointToAdd.size(); i++)
+    for (size_t i = 0; i < PointToAdd.size(); i++)
     {
         if (downsample_on)
         {
-            int x_key = int(PointToAdd[i].x * inv_downsample_size) - signbit(PointToAdd[i].x);
-            int y_key = int(PointToAdd[i].y * inv_downsample_size) - signbit(PointToAdd[i].y);
-            int z_key = int(PointToAdd[i].z * inv_downsample_size) - signbit(PointToAdd[i].z);
+            int x_key = int(PointToAdd[i].x * inv_downsample_size) - std::signbit(PointToAdd[i].x);
+            int y_key = int(PointToAdd[i].y * inv_downsample_size) - std::signbit(PointToAdd[i].y);
+            int z_key = int(PointToAdd[i].z * inv_downsample_size) - std::signbit(PointToAdd[i].z);
 
             Box_of_Point.vertex_min[0] = x_key * downsample_size;
             Box_of_Point.vertex_max[0] = Box_of_Point.vertex_min[0] + downsample_size;
@@ -648,7 +679,7 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
 template <typename PointType>
 void KD_TREE<PointType>::Add_Point_Boxes(const vector<BoxPointType> &BoxPoints)
 {
-    for (int i = 0; i < BoxPoints.size(); i++)
+    for (size_t i = 0; i < BoxPoints.size(); i++)
     {
         if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
         {
@@ -676,7 +707,7 @@ void KD_TREE<PointType>::Add_Point_Boxes(const vector<BoxPointType> &BoxPoints)
 template <typename PointType>
 void KD_TREE<PointType>::Delete_Points(const PointVector &PointToDel)
 {
-    for (int i = 0; i < PointToDel.size(); i++)
+    for (size_t i = 0; i < PointToDel.size(); i++)
     {
         if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
         {
@@ -705,7 +736,7 @@ template <typename PointType>
 int KD_TREE<PointType>::Delete_Point_Boxes(const vector<BoxPointType> &BoxPoints)
 {
     int tmp_counter = 0;
-    for (int i = 0; i < BoxPoints.size(); i++)
+    for (size_t i = 0; i < BoxPoints.size(); i++)
     {
         if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
         {
@@ -733,13 +764,12 @@ int KD_TREE<PointType>::Delete_Point_Boxes(const vector<BoxPointType> &BoxPoints
 template <typename PointType>
 void KD_TREE<PointType>::Delete_Points_Downsample(const PointVector &PointToDel)
 {
-    int tmp_counter = 0;
-    for (int i = 0; i < PointToDel.size(); i++)
+    for (size_t i = 0; i < PointToDel.size(); i++)
     {
         BoxPointType Box_of_Point;
-        int x_key = int(PointToDel[i].x * inv_downsample_size) - signbit(PointToDel[i].x);
-        int y_key = int(PointToDel[i].y * inv_downsample_size) - signbit(PointToDel[i].y);
-        int z_key = int(PointToDel[i].z * inv_downsample_size) - signbit(PointToDel[i].z);
+        int x_key = int(PointToDel[i].x * inv_downsample_size) - std::signbit(PointToDel[i].x);
+        int y_key = int(PointToDel[i].y * inv_downsample_size) - std::signbit(PointToDel[i].y);
+        int z_key = int(PointToDel[i].z * inv_downsample_size) - std::signbit(PointToDel[i].z);
         Box_of_Point.vertex_min[0] = x_key * downsample_size;
         Box_of_Point.vertex_max[0] = Box_of_Point.vertex_min[0] + downsample_size;
         Box_of_Point.vertex_min[1] = y_key * downsample_size;
@@ -749,7 +779,7 @@ void KD_TREE<PointType>::Delete_Points_Downsample(const PointVector &PointToDel)
 
         if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
         {
-            tmp_counter += Delete_by_range(&Root_Node, Box_of_Point, true, false);
+            Delete_by_range(&Root_Node, Box_of_Point, true, false);
         }
         else
         {
@@ -757,7 +787,7 @@ void KD_TREE<PointType>::Delete_Points_Downsample(const PointVector &PointToDel)
             operation.boxpoint = Box_of_Point;
             operation.op = DELETE_BOX;
             pthread_mutex_lock(&working_flag_mutex);
-            tmp_counter += Delete_by_range(&Root_Node, Box_of_Point, false, false);
+            Delete_by_range(&Root_Node, Box_of_Point, false, false);
             if (rebuild_flag)
             {
                 pthread_mutex_lock(&rebuild_logger_mutex_lock);
@@ -774,11 +804,11 @@ template <typename PointType>
 void KD_TREE<PointType>::acquire_removed_points(PointVector &removed_points)
 {
     pthread_mutex_lock(&points_deleted_rebuild_mutex_lock);
-    for (int i = 0; i < Points_deleted.size(); i++)
+    for (size_t i = 0; i < Points_deleted.size(); i++)
     {
         removed_points.push_back(Points_deleted[i]);
     }
-    for (int i = 0; i < Multithread_Points_deleted.size(); i++)
+    for (size_t i = 0; i < Multithread_Points_deleted.size(); i++)
     {
         removed_points.push_back(Multithread_Points_deleted[i]);
     }
@@ -863,7 +893,6 @@ void KD_TREE<PointType>::Rebuild(KD_TREE_NODE **root)
     else
     {
         father_ptr = (*root)->father_ptr;
-        int size_rec = (*root)->TreeSize;
         PCL_Storage.clear();
         flatten(*root, PCL_Storage, DELETE_POINTS_REC);
         delete_tree_nodes(root);
@@ -1421,9 +1450,9 @@ void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, const PointType &p
     range_center.x = (root->node_range_x[0] + root->node_range_x[1]) * 0.5;
     range_center.y = (root->node_range_y[0] + root->node_range_y[1]) * 0.5;
     range_center.z = (root->node_range_z[0] + root->node_range_z[1]) * 0.5;
-    float dist = sqrt(calc_dist(range_center, point));
-    if (dist > radius + sqrt(root->radius_sq)) return;
-    if (dist <= radius - sqrt(root->radius_sq)) 
+    float dist = std::sqrt(calc_dist(range_center, point));
+    if (dist > radius + std::sqrt(root->radius_sq)) return;
+    if (dist <= radius - std::sqrt(root->radius_sq)) 
     {
         flatten(root, Storage, NOT_RECORD);
         return;
@@ -1452,6 +1481,61 @@ void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, const PointType &p
         pthread_mutex_unlock(&search_flag_mutex);
     }    
     return;
+}
+
+template <typename PointType>
+bool KD_TREE<PointType>::CollisionCheckRecursive(KD_TREE_NODE *root, const PointType &point, const float &radius)
+{
+    if (root == nullptr) return false;
+    Push_Down(root);
+    PointType range_center;
+    range_center.x = (root->node_range_x[0] + root->node_range_x[1]) * 0.5;
+    range_center.y = (root->node_range_y[0] + root->node_range_y[1]) * 0.5;
+    range_center.z = (root->node_range_z[0] + root->node_range_z[1]) * 0.5;
+    float dist = std::sqrt(calc_dist(range_center, point));
+    if (dist > radius + std::sqrt(root->radius_sq)) return false;
+    if (dist <= radius - std::sqrt(root->radius_sq)) 
+    {
+        return true;
+    }
+    if (!root->point_deleted && calc_dist(root->point, point) <= radius * radius){
+        return true;
+    }
+    if ((Rebuild_Ptr == nullptr) || root->left_son_ptr != *Rebuild_Ptr)
+    {
+        if (CollisionCheckRecursive(root->left_son_ptr, point, radius))
+        {
+            return true;
+        }
+    }
+    else
+    {
+        pthread_mutex_lock(&search_flag_mutex);
+        bool collision_ = CollisionCheckRecursive(root->left_son_ptr, point, radius);
+        pthread_mutex_unlock(&search_flag_mutex);
+        if (collision_)
+        {
+            return true;
+        }
+    }
+    if ((Rebuild_Ptr == nullptr) || root->right_son_ptr != *Rebuild_Ptr)
+    {
+        if (CollisionCheckRecursive(root->right_son_ptr, point, radius))
+        {
+            return true;
+        }
+    }
+    else
+    {
+        pthread_mutex_lock(&search_flag_mutex);
+        bool collision_ = CollisionCheckRecursive(root->right_son_ptr, point, radius);
+        pthread_mutex_unlock(&search_flag_mutex);
+        if (collision_)
+        {
+            return true;
+        }
+    }    
+    return false;
 }
 
 template <typename PointType>
@@ -1799,7 +1883,7 @@ void KD_TREE<PointType>::delete_tree_nodes(KD_TREE_NODE **root)
 template <typename PointType>
 bool KD_TREE<PointType>::same_point(const PointType &a, const PointType &b)
 {
-    return (fabs(a.x - b.x) < EPSS && fabs(a.y - b.y) < EPSS && fabs(a.z - b.z) < EPSS);
+    return (std::fabs(a.x - b.x) < EPSS && std::fabs(a.y - b.y) < EPSS && std::fabs(a.z - b.z) < EPSS);
 }
 
 template <typename PointType>

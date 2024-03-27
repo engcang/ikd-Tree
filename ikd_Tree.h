@@ -294,6 +294,7 @@ private:
     void Search(KD_TREE_NODE *root, const int &k_nearest, const PointType &point, MANUAL_HEAP &q, const float &max_dist); //priority_queue<PointType_CMP>
     void Search_by_range(KD_TREE_NODE *root, const BoxPointType &boxpoint, PointVector &Storage);
     void Search_by_radius(KD_TREE_NODE *root, const PointType &point, const float &radius, PointVector &Storage);
+    bool CollisionCheckRecursive(KD_TREE_NODE *root, const PointType &point, const float &radius);
     bool Criterion_Check(KD_TREE_NODE *root);
     void Push_Down(KD_TREE_NODE *root);
     void Update(KD_TREE_NODE *root);
@@ -334,6 +335,8 @@ public:
     void Nearest_Search(const PointType &point, const int &k_nearest, PointVector &Nearest_Points, vector<float> &Point_Distance, const float &max_dist = INFINITY);
     void Box_Search(const BoxPointType &Box_of_Point, PointVector &Storage);
     void Radius_Search(const PointType &point, const float &radius, PointVector &Storage);
+    bool CollisionCheck(const PointType &point, const float &radius);
+    bool CollisionLineCheck(const PointType &point1, const PointType &point2, const float &radius);
     int Add_Points(const PointVector &PointToAdd, const bool &downsample_on);
     void Add_Point_Boxes(const vector<BoxPointType> &BoxPoints);
     void Delete_Points(const PointVector &PointToDel);
