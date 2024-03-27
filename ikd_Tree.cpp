@@ -246,7 +246,7 @@ template <typename PointType>
 void KD_TREE<PointType>::multi_thread_rebuild()
 {
     bool terminated = false;
-    KD_TREE_NODE *father_ptr, **new_node_ptr;
+    KD_TREE_NODE *father_ptr;
     pthread_mutex_lock(&termination_flag_mutex_lock);
     terminated = termination_flag;
     pthread_mutex_unlock(&termination_flag_mutex_lock);
@@ -344,8 +344,7 @@ void KD_TREE<PointType>::multi_thread_rebuild()
             if (new_root_node != nullptr)
                 new_root_node->father_ptr = father_ptr;
             (*Rebuild_Ptr) = new_root_node;
-            int valid_old = old_root_node->TreeSize - old_root_node->invalid_point_num;
-            int valid_new = new_root_node->TreeSize - new_root_node->invalid_point_num;
+
             if (father_ptr == STATIC_ROOT_NODE)
                 Root_Node = STATIC_ROOT_NODE->left_son_ptr;
             KD_TREE_NODE *update_root = *Rebuild_Ptr;
@@ -524,11 +523,13 @@ template <typename PointType>
 void KD_TREE<PointType>::Ray_Cast(const PointType &pt, const PointType &dir, const float& radius, PointType& hit_point, const float& max_dist)
 {
     float dir_length = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
-    PointType norm_dir{dir.x / dir_length, dir.y / dir_length, dir.z / dir_length};
+    float norm_dir_x = dir.x / dir_length;
+    float norm_dir_y = dir.y / dir_length;
+    float norm_dir_z = dir.z / dir_length;
     
-    float stepX = norm_dir.x * downsample_size;
-    float stepY = norm_dir.y * downsample_size;
-    float stepZ = norm_dir.z * downsample_size;
+    float stepX = norm_dir_x * downsample_size;
+    float stepY = norm_dir_y * downsample_size;
+    float stepZ = norm_dir_z * downsample_size;
     int steps = std::ceil(max_dist / downsample_size);
     PointType search_pt = pt;
     
@@ -544,9 +545,9 @@ void KD_TREE<PointType>::Ray_Cast(const PointType &pt, const PointType &dir, con
         search_pt.z += stepZ;
     }
     
-    hit_point.x = pt.x + norm_dir.x * max_dist;
-    hit_point.y = pt.y + norm_dir.y * max_dist;
-    hit_point.z = pt.z + norm_dir.z * max_dist;
+    hit_point.x = pt.x + norm_dir_x * max_dist;
+    hit_point.y = pt.y + norm_dir_y * max_dist;
+    hit_point.z = pt.z + norm_dir_z * max_dist;
 }
 
 template <typename PointType>
@@ -1046,7 +1047,6 @@ int KD_TREE<PointType>::Delete_by_range(KD_TREE_NODE **root, const BoxPointType 
             (*root)->point_downsample_deleted = true;
     }
     Operation_Logger_Type delete_box_log;
-    struct timespec Timeout;
     if (is_downsample)
         delete_box_log.op = DOWNSAMPLE_DELETE;
     else
@@ -1111,7 +1111,6 @@ void KD_TREE<PointType>::Delete_by_point(KD_TREE_NODE **root, const PointType &p
         return;
     }
     Operation_Logger_Type delete_log;
-    struct timespec Timeout;
     delete_log.op = DELETE_POINT;
     delete_log.point = point;
     if (((*root)->division_axis == 0 && point.x < (*root)->point.x) || ((*root)->division_axis == 1 && point.y < (*root)->point.y) || ((*root)->division_axis == 2 && point.z < (*root)->point.z))
@@ -1179,7 +1178,6 @@ void KD_TREE<PointType>::Delete_by_point_accurate(KD_TREE_NODE **root, const Poi
         return;
     }
     Operation_Logger_Type delete_log;
-    struct timespec Timeout;
     delete_log.op = DELETE_POINT;
     delete_log.point = point;
     if ((Rebuild_Ptr == nullptr) || (*root)->left_son_ptr != *Rebuild_Ptr)
@@ -1252,7 +1250,6 @@ void KD_TREE<PointType>::Add_by_range(KD_TREE_NODE **root, const BoxPointType &b
         (*root)->point_deleted = (*root)->point_downsample_deleted;
     }
     Operation_Logger_Type add_box_log;
-    struct timespec Timeout;
     add_box_log.op = ADD_BOX;
     add_box_log.boxpoint = boxpoint;
     if ((Rebuild_Ptr == nullptr) || (*root)->left_son_ptr != *Rebuild_Ptr)
@@ -1312,7 +1309,6 @@ void KD_TREE<PointType>::Add_by_point(KD_TREE_NODE **root, const PointType &poin
     }
     (*root)->working_flag = true;
     Operation_Logger_Type add_log;
-    struct timespec Timeout;
     add_log.op = ADD_POINT;
     add_log.point = point;
     Push_Down(*root);
@@ -1400,10 +1396,10 @@ void KD_TREE<PointType>::Search(KD_TREE_NODE *root, const int &k_nearest, const 
             q.push(current_point);
         }
     }
-    int cur_search_counter;
+
     float dist_left_node = calc_box_dist(root->left_son_ptr, point);
     float dist_right_node = calc_box_dist(root->right_son_ptr, point);
-    if (q.size() < k_nearest || dist_left_node < q.top().dist && dist_right_node < q.top().dist)
+    if (q.size() < k_nearest || (dist_left_node < q.top().dist && dist_right_node < q.top().dist))
     {
         if (dist_left_node <= dist_right_node)
         {
