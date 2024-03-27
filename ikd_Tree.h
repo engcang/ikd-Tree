@@ -350,6 +350,7 @@ public:
     void Box_Search(const BoxPointType &Box_of_Point, PointVector &Storage);
     void Radius_Search(const PointType &point, const float &radius, PointVector &Storage);
     bool CollisionCheck(const PointType &point, const float &radius);
+    bool CollisionLineCheck(const PointType &point1, const PointType &point2, const float &radius);
     int Add_Points(const PointVector &PointToAdd, const bool &downsample_on);
     void Add_Point_Boxes(const vector<BoxPointType> &BoxPoints);
     void Delete_Points(const PointVector &PointToDel);
