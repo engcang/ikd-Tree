@@ -496,7 +496,7 @@ void KD_TREE<PointType>::Radius_Search(const PointType &point, const float &radi
 }
 
 template <typename PointType>
-bool CollisionLineCheck(const PointType &point1, const PointType &point2, const float &radius)
+bool KD_TREE<PointType>::CollisionLineCheck(const PointType &point1, const PointType &point2, const float &radius)
 {
     if (CollisionCheck(point1, radius)) return true;
     if (CollisionCheck(point2, radius)) return true;
@@ -518,6 +518,35 @@ bool CollisionLineCheck(const PointType &point1, const PointType &point2, const 
     }
 
     return false;
+}
+
+template <typename PointType>
+void KD_TREE<PointType>::Ray_Cast(const PointType &pt, const PointType &dir, const float& radius, PointType& hit_point, const float& max_dist)
+{
+    float dir_length = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+    PointType norm_dir{dir.x / dir_length, dir.y / dir_length, dir.z / dir_length};
+    
+    float stepX = norm_dir.x * downsample_size;
+    float stepY = norm_dir.y * downsample_size;
+    float stepZ = norm_dir.z * downsample_size;
+    int steps = std::ceil(max_dist / downsample_size);
+    PointType search_pt = pt;
+    
+    for (int i = 0; i < steps; ++i)
+    {
+        if (CollisionCheck(search_pt, radius))
+        {
+            hit_point = search_pt;
+            return;
+        }
+        search_pt.x += stepX;
+        search_pt.y += stepY;
+        search_pt.z += stepZ;
+    }
+    
+    hit_point.x = pt.x + norm_dir.x * max_dist;
+    hit_point.y = pt.y + norm_dir.y * max_dist;
+    hit_point.z = pt.z + norm_dir.z * max_dist;
 }
 
 template <typename PointType>
