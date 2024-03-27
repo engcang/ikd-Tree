@@ -388,37 +388,37 @@ void KD_TREE<PointType>::run_operation(KD_TREE_NODE **root, Operation_Logger_Typ
 {
     switch (operation.op)
     {
-    case ADD_POINT:
-        Add_by_point(root, operation.point, false, (*root)->division_axis);
-        break;
-    case ADD_BOX:
-        Add_by_range(root, operation.boxpoint, false);
-        break;
-    case DELETE_POINT:
-        Delete_by_point(root, operation.point, false);
-        break;
-    case DELETE_BOX:
-        Delete_by_range(root, operation.boxpoint, false, false);
-        break;
-    case DOWNSAMPLE_DELETE:
-        Delete_by_range(root, operation.boxpoint, false, true);
-        break;
-    case PUSH_DOWN:
-        (*root)->tree_downsample_deleted |= operation.tree_downsample_deleted;
-        (*root)->point_downsample_deleted |= operation.tree_downsample_deleted;
-        (*root)->tree_deleted = operation.tree_deleted || (*root)->tree_downsample_deleted;
-        (*root)->point_deleted = (*root)->tree_deleted || (*root)->point_downsample_deleted;
-        if (operation.tree_downsample_deleted)
-            (*root)->down_del_num = (*root)->TreeSize;
-        if (operation.tree_deleted)
-            (*root)->invalid_point_num = (*root)->TreeSize;
-        else
-            (*root)->invalid_point_num = (*root)->down_del_num;
-        (*root)->need_push_down_to_left = true;
-        (*root)->need_push_down_to_right = true;
-        break;
-    default:
-        break;
+        case ADD_POINT:
+            Add_by_point(root, operation.point, false, (*root)->division_axis);
+            break;
+        case ADD_BOX:
+            Add_by_range(root, operation.boxpoint, false);
+            break;
+        case DELETE_POINT:
+            Delete_by_point(root, operation.point, false);
+            break;
+        case DELETE_BOX:
+            Delete_by_range(root, operation.boxpoint, false, false);
+            break;
+        case DOWNSAMPLE_DELETE:
+            Delete_by_range(root, operation.boxpoint, false, true);
+            break;
+        case PUSH_DOWN:
+            (*root)->tree_downsample_deleted |= operation.tree_downsample_deleted;
+            (*root)->point_downsample_deleted |= operation.tree_downsample_deleted;
+            (*root)->tree_deleted = operation.tree_deleted || (*root)->tree_downsample_deleted;
+            (*root)->point_deleted = (*root)->tree_deleted || (*root)->point_downsample_deleted;
+            if (operation.tree_downsample_deleted)
+                (*root)->down_del_num = (*root)->TreeSize;
+            if (operation.tree_deleted)
+                (*root)->invalid_point_num = (*root)->TreeSize;
+            else
+                (*root)->invalid_point_num = (*root)->down_del_num;
+            (*root)->need_push_down_to_left = true;
+            (*root)->need_push_down_to_right = true;
+            break;
+        default:
+            break;
     }
     return;
 }
@@ -1970,22 +1970,22 @@ void KD_TREE<PointType>::flatten(KD_TREE_NODE *root, PointVector &Storage, delet
     flatten(root->right_son_ptr, Storage, storage_type);
     switch (storage_type)
     {
-    case NOT_RECORD:
-        break;
-    case DELETE_POINTS_REC:
-        if (root->point_deleted && !root->point_downsample_deleted)
-        {
-            Points_deleted.push_back(root->point);
-        }
-        break;
-    case MULTI_THREAD_REC:
-        if (root->point_deleted && !root->point_downsample_deleted)
-        {
-            Multithread_Points_deleted.push_back(root->point);
-        }
-        break;
-    default:
-        break;
+        case NOT_RECORD:
+            break;
+        case DELETE_POINTS_REC:
+            if (root->point_deleted && !root->point_downsample_deleted)
+            {
+                Points_deleted.push_back(root->point);
+            }
+            break;
+        case MULTI_THREAD_REC:
+            if (root->point_deleted && !root->point_downsample_deleted)
+            {
+                Multithread_Points_deleted.push_back(root->point);
+            }
+            break;
+        default:
+            break;
     }
     return;
 }
