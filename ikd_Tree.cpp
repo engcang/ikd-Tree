@@ -621,12 +621,13 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
                 }
                 if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
                 {
-                    if (same_point(PointToAdd[i], downsample_result))
+                    if (same_point(PointToAdd[i], downsample_result)) // add a new point closest to the centroid, and delete old ones
                     {
                         Delete_by_range(&Root_Node, Box_of_Point, true, true);
+                        Add_by_point(&Root_Node, downsample_result, true, Root_Node->division_axis);
+                        tmp_counter++;
                     }
-                    Add_by_point(&Root_Node, downsample_result, true, Root_Node->division_axis);
-                    tmp_counter++;
+                    // otherwise, old one is the closest, so skip
                 }
                 else
                 {
@@ -636,26 +637,26 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
                     operation.point = downsample_result;
                     operation.op = ADD_POINT;
                     pthread_mutex_lock(&working_flag_mutex);
-                    if (same_point(PointToAdd[i], downsample_result))
+                    if (same_point(PointToAdd[i], downsample_result)) // add a new point closest to the centroid, and delete old ones. otherwise, old one is the closest, so skip
                     {
                         Delete_by_range(&Root_Node, Box_of_Point, false, true);
+                        Add_by_point(&Root_Node, downsample_result, false, Root_Node->division_axis);
+                        tmp_counter++;
                     }
-                    Add_by_point(&Root_Node, downsample_result, false, Root_Node->division_axis);
-                    tmp_counter++;
                     if (rebuild_flag)
                     {
                         pthread_mutex_lock(&rebuild_logger_mutex_lock);
-                        if (same_point(PointToAdd[i], downsample_result))
+                        if (same_point(PointToAdd[i], downsample_result)) // add a new point closest to the centroid, and delete old ones. otherwise, old one is the closest, so skip
                         {
                             Rebuild_Logger.push(operation_delete);
+                            Rebuild_Logger.push(operation);
                         }
-                        Rebuild_Logger.push(operation);
                         pthread_mutex_unlock(&rebuild_logger_mutex_lock);
                     }
                     pthread_mutex_unlock(&working_flag_mutex);
                 }
             }
-            else // add a raw point
+            else // empty, the new point is the closest one
             {
                 if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
                 {
@@ -680,7 +681,7 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
                 }
             }
         }
-        else
+        else // add a raw point
         {
             if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
             {
