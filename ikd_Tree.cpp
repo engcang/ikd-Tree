@@ -520,6 +520,31 @@ bool KD_TREE<PointType>::CollisionLineCheck(const PointType &point1, const Point
 }
 
 template <typename PointType>
+bool KD_TREE<PointType>::CollisionLineCheckExceptOrigin(const PointType &origin, const PointType &point1, const PointType &point2, const float &radius)
+{
+    if (CollisionCheck(point1, radius) && !same_point(origin, point1)) return true;
+    if (CollisionCheck(point2, radius) && !same_point(origin, point2)) return true;
+
+    int steps = std::ceil(std::sqrt(calc_dist(point1, point2)) / downsample_size);
+    float stepX = (point2.x - point1.x) / steps;
+    float stepY = (point2.y - point1.y) / steps;
+    float stepZ = (point2.z - point1.z) / steps;
+    PointType searchPoint = point1;
+    for (int i = 1; i < steps; ++i)
+    {
+        searchPoint.x += stepX;
+        searchPoint.y += stepY;
+        searchPoint.z += stepZ;
+        if (CollisionCheck(searchPoint, radius))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+template <typename PointType>
 void KD_TREE<PointType>::Ray_Cast(const PointType &pt, const PointType &dir, const float& radius, PointType& hit_point, const float& max_dist)
 {
     float dir_length = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
