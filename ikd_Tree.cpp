@@ -597,9 +597,9 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
             PointVector PointToAddDownsampled;
             for (size_t i = 0; i < PointToBuild.size(); ++i)
             {
-                mid_point.x = (int(PointToBuild[i].x * inv_downsample_size) - std::signbit(PointToBuild[i].x) + 0.5) * downsample_size;
-                mid_point.y = (int(PointToBuild[i].y * inv_downsample_size) - std::signbit(PointToBuild[i].y) + 0.5) * downsample_size;
-                mid_point.z = (int(PointToBuild[i].z * inv_downsample_size) - std::signbit(PointToBuild[i].z) + 0.5) * downsample_size;
+                mid_point.x = (std::floor(PointToBuild[i].x * inv_downsample_size) + 0.5) * downsample_size;
+                mid_point.y = (std::floor(PointToBuild[i].y * inv_downsample_size) + 0.5) * downsample_size;
+                mid_point.z = (std::floor(PointToBuild[i].z * inv_downsample_size) + 0.5) * downsample_size;
                 // if current mid_point is not already in the vector, push
                 if (PointToAddDownsampled.end() == (find_if(PointToAddDownsampled.begin(), PointToAddDownsampled.end(), 
                     [&](PointType pt){return same_point(mid_point, pt);})))
@@ -616,9 +616,9 @@ int KD_TREE<PointType>::Add_Points(const PointVector &PointToAdd, const bool &do
     {
         if (downsample_on)
         {
-            int x_key = int(PointToAdd[i].x * inv_downsample_size) - std::signbit(PointToAdd[i].x);
-            int y_key = int(PointToAdd[i].y * inv_downsample_size) - std::signbit(PointToAdd[i].y);
-            int z_key = int(PointToAdd[i].z * inv_downsample_size) - std::signbit(PointToAdd[i].z);
+            int x_key = std::floor(PointToAdd[i].x * inv_downsample_size);
+            int y_key = std::floor(PointToAdd[i].y * inv_downsample_size);
+            int z_key = std::floor(PointToAdd[i].z * inv_downsample_size);
 
             Box_of_Point.vertex_min[0] = x_key * downsample_size;
             Box_of_Point.vertex_max[0] = Box_of_Point.vertex_min[0] + downsample_size;
@@ -869,9 +869,9 @@ void KD_TREE<PointType>::Delete_Points_Downsample(const PointVector &PointToDel)
     for (size_t i = 0; i < PointToDel.size(); i++)
     {
         BoxPointType Box_of_Point;
-        int x_key = int(PointToDel[i].x * inv_downsample_size) - std::signbit(PointToDel[i].x);
-        int y_key = int(PointToDel[i].y * inv_downsample_size) - std::signbit(PointToDel[i].y);
-        int z_key = int(PointToDel[i].z * inv_downsample_size) - std::signbit(PointToDel[i].z);
+        int x_key = std::floor(PointToDel[i].x * inv_downsample_size);
+        int y_key = std::floor(PointToDel[i].y * inv_downsample_size);
+        int z_key = std::floor(PointToDel[i].z * inv_downsample_size);
         Box_of_Point.vertex_min[0] = x_key * downsample_size;
         Box_of_Point.vertex_max[0] = Box_of_Point.vertex_min[0] + downsample_size;
         Box_of_Point.vertex_min[1] = y_key * downsample_size;
