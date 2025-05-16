@@ -714,71 +714,6 @@ void KD_TREE<PointType>::Add_Point_Boxes(const vector<BoxPointType> &BoxPoints)
 }
 
 template <typename PointType>
-void KD_TREE<PointType>::Get_Covered_Points(PointVector &Storage, const bool &get_covered_or_uncovered)
-{
-    Storage.clear();
-    Get_Points_Covered(Root_Node, Storage, get_covered_or_uncovered);
-    return;
-}
-
-template <typename PointType>
-void KD_TREE<PointType>::Get_Points_Covered(KD_TREE_NODE *root, PointVector &Storage, const bool &get_covered_or_uncovered)
-{
-    if (root == nullptr)
-        return;
-    Push_Down(root);
-    if (!root->point_deleted && (root->point.covered==get_covered_or_uncovered))
-    {
-        Storage.push_back(root->point);
-    }
-    Get_Points_Covered(root->left_son_ptr, Storage, get_covered_or_uncovered);
-    Get_Points_Covered(root->right_son_ptr, Storage, get_covered_or_uncovered);
-    return;
-}
-
-template <typename PointType>
-int KD_TREE<PointType>::Set_Covered_by_point(KD_TREE_NODE *root, const PointType &point)
-{
-    if (root == nullptr)
-        return -1;
-    Push_Down(root);
-    if (same_point(root->point, point) && !root->point_deleted)
-    {
-        root->point.covered = true;
-        return 0;
-    }
-    else
-    {
-        // if ((root->division_axis == 0 && point.x < root->point.x) || (root->division_axis == 1 && point.y < root->point.y) || (root->division_axis == 2 && point.z < root->point.z))
-        // {
-        //     if (Set_Covered_by_point(root->left_son_ptr, point) == 0)
-        //         return 0;
-        // }
-        // else
-        // {            
-        //     if (Set_Covered_by_point(root->right_son_ptr, point) == 0)
-        //         return 0;
-        // }
-        if (Set_Covered_by_point(root->left_son_ptr, point) == 0)
-            return 0;
-        else if (Set_Covered_by_point(root->right_son_ptr, point) == 0)
-            return 0;
-    }
-    return -1;
-}
-
-template <typename PointType>
-void KD_TREE<PointType>::Set_Covered_Points(const PointVector &PointsCovered)
-{
-    for (size_t i = 0; i < PointsCovered.size(); i++)
-    {
-        if (PointsCovered[i].covered) continue;
-        Set_Covered_by_point(Root_Node, PointsCovered[i]);
-    }
-    return;
-}
-
-template <typename PointType>
 void KD_TREE<PointType>::Delete_Points(const PointVector &PointToDel)
 {
     for (size_t i = 0; i < PointToDel.size(); i++)
@@ -2098,5 +2033,8 @@ template <typename PointType>
 bool KD_TREE<PointType>::point_cmp_z(const PointType &a, const PointType &b) { return a.z < b.z; }
 
 
-// Manual Instatiations
-template class KD_TREE<PointType_Coverage>;
+// Manual Instantiations
+template class KD_TREE<pcl::PointXYZ>;
+template class KD_TREE<pcl::PointXYZI>;
+template class KD_TREE<pcl::PointXYZINormal>;
+template class KD_TREE<SpherePoint>;

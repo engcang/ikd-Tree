@@ -18,18 +18,12 @@
 
 using namespace std;
 
-
-struct PointType_Coverage //pcl::PointXYZ + coverage, if want to use PointXYZI or else, should define struct here
+struct SpherePoint
 {
-    float x,y,z;
-    bool covered=false;
-    PointType_Coverage (const float &px = 0.0f, const float &py = 0.0f, const float &pz = 0.0f, const bool &covered_flag=false)
-    {
-        x = px;
-        y = py;
-        z = pz;
-        covered = covered_flag;
-    }
+    float x;
+    float y;
+    float z;
+    size_t hash_key;
 };
 
 struct BoxPointType
@@ -301,8 +295,6 @@ private:
     int Delete_by_range(KD_TREE_NODE **root, const BoxPointType &boxpoint, const bool &allow_rebuild, const bool &is_downsample);
     void Delete_by_point(KD_TREE_NODE **root, const PointType &point, const bool &allow_rebuild);
     void Delete_by_point_accurate(KD_TREE_NODE **root, const PointType &point, const bool &allow_rebuild);
-    int Set_Covered_by_point(KD_TREE_NODE *root, const PointType &point);
-    void Get_Points_Covered(KD_TREE_NODE *root, PointVector &Storage, const bool &get_covered_or_uncovered);
     void Add_by_point(KD_TREE_NODE **root, const PointType &point, const bool &allow_rebuild, const int &father_axis);
     void Add_by_range(KD_TREE_NODE **root, const BoxPointType &boxpoint, const bool &allow_rebuild);
     void Search(KD_TREE_NODE *root, const int &k_nearest, const PointType &point, MANUAL_HEAP &q, const float &max_dist); //priority_queue<PointType_CMP>
@@ -359,8 +351,6 @@ public:
     void Delete_Points_Downsample(const PointVector &PointToDel);
     void Delete_Points_Accurate(const PointVector &PointToDel);
     int Delete_Point_Boxes(const vector<BoxPointType> &BoxPoints);
-    void Set_Covered_Points(const PointVector &PointsCovered);
-    void Get_Covered_Points(PointVector &Storage, const bool &get_covered_or_uncovered = true);
     void flatten(KD_TREE_NODE *root, PointVector &Storage, delete_point_storage_set storage_type);
     void acquire_removed_points(PointVector &removed_points);
     void Delete_Ikd_Tree();
