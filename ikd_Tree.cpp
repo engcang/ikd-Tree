@@ -12,12 +12,13 @@ https://github.com/engcang/ikd-Tree.git
 */
 
 template <typename PointType>
-KD_TREE<PointType>::KD_TREE(float delete_param, float balance_param, float box_length)
+KD_TREE<PointType>::KD_TREE(float delete_param, float balance_param, float box_length, bool record_removed_points)
 {
     delete_criterion_param = delete_param;
     balance_criterion_param = balance_param;
     downsample_size = box_length;
     inv_downsample_size = 1.0f / downsample_size;
+    Delete_Storage_Disabled = !record_removed_points;
     Rebuild_Logger.clear();
     termination_flag = false;
     start_thread();
@@ -29,6 +30,13 @@ KD_TREE<PointType>::~KD_TREE()
     stop_thread();
     Delete_Storage_Disabled = true;
     delete_tree_nodes(&Root_Node);
+    //Codex: The sentinel is not part of Root_Node's subtree and owns its own mutex.
+    if (STATIC_ROOT_NODE != nullptr)
+    {
+        pthread_mutex_destroy(&STATIC_ROOT_NODE->push_down_mutex_lock);
+        delete STATIC_ROOT_NODE;
+        STATIC_ROOT_NODE = nullptr;
+    }
     PointVector().swap(PCL_Storage);
     Rebuild_Logger.clear();
 }
@@ -36,7 +44,16 @@ KD_TREE<PointType>::~KD_TREE()
 template <typename PointType>
 void KD_TREE<PointType>::Delete_Ikd_Tree()
 {
+    //Codex: Callers exclude concurrent public operations; wait for the internal rebuild before resetting.
+    pthread_mutex_lock(&rebuild_ptr_mutex_lock);
+    pthread_mutex_lock(&working_flag_mutex);
+    Rebuild_Ptr = nullptr;
     delete_tree_nodes(&Root_Node);
+    if (STATIC_ROOT_NODE != nullptr)
+        STATIC_ROOT_NODE->left_son_ptr = nullptr;
+    Rebuild_Logger.clear();
+    pthread_mutex_unlock(&working_flag_mutex);
+    pthread_mutex_unlock(&rebuild_ptr_mutex_lock);
     return;
 }
 
@@ -425,14 +442,15 @@ void KD_TREE<PointType>::run_operation(KD_TREE_NODE **root, Operation_Logger_Typ
 template <typename PointType>
 void KD_TREE<PointType>::Build(PointVector &point_cloud)
 {
-    if (Root_Node != nullptr)
-    {
-        delete_tree_nodes(&Root_Node);
-    }
+    Delete_Ikd_Tree();
     if (point_cloud.size() == 0)
         return;
-    STATIC_ROOT_NODE = new KD_TREE_NODE;
-    InitTreeNode(STATIC_ROOT_NODE);
+    //Codex: Reuse the sentinel across per-frame clears instead of leaking one allocation per build.
+    if (STATIC_ROOT_NODE == nullptr)
+    {
+        STATIC_ROOT_NODE = new KD_TREE_NODE;
+        InitTreeNode(STATIC_ROOT_NODE);
+    }
     BuildTree(&STATIC_ROOT_NODE->left_son_ptr, 0, point_cloud.size() - 1, point_cloud);
     Update(STATIC_ROOT_NODE);
     STATIC_ROOT_NODE->TreeSize = 0;
@@ -482,7 +500,13 @@ template <typename PointType>
 void KD_TREE<PointType>::Box_Search(const BoxPointType &Box_of_Point, PointVector &Storage)
 {
     Storage.clear();
-    Search_by_range(Root_Node, Box_of_Point, Storage);
+    if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
+        Search_by_range(Root_Node, Box_of_Point, Storage);
+    else
+    {
+        RebuildSearchGuard guard(*this);
+        Search_by_range(Root_Node, Box_of_Point, Storage);
+    }
     return;
 }
 
@@ -490,8 +514,22 @@ template <typename PointType>
 void KD_TREE<PointType>::Radius_Search(const PointType &point, const float &radius, PointVector &Storage)
 {
     Storage.clear();
-    Search_by_radius(Root_Node, point, radius, Storage);
+    if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
+        Search_by_radius(Root_Node, point, radius, Storage);
+    else
+    {
+        RebuildSearchGuard guard(*this);
+        Search_by_radius(Root_Node, point, radius, Storage);
+    }
     return;
+}
+
+template <typename PointType>
+void KD_TREE<PointType>::Get_Points(PointVector &Storage)
+{
+    //Codex: Public snapshots must also synchronize; flatten() is an internal traversal.
+    const BoxPointType all{{-INFINITY, -INFINITY, -INFINITY}, {INFINITY, INFINITY, INFINITY}};
+    Box_Search(all, Storage);
 }
 
 template <typename PointType>
@@ -578,6 +616,9 @@ void KD_TREE<PointType>::Ray_Cast(const PointType &pt, const PointType &dir, con
 template <typename PointType>
 bool KD_TREE<PointType>::CollisionCheck(const PointType &point, const float &radius)
 {
+    if (Rebuild_Ptr == nullptr || *Rebuild_Ptr != Root_Node)
+        return CollisionCheckRecursive(Root_Node, point, radius);
+    RebuildSearchGuard guard(*this);
     return CollisionCheckRecursive(Root_Node, point, radius);
 }
 
@@ -962,10 +1003,8 @@ void KD_TREE<PointType>::Rebuild(KD_TREE_NODE **root)
 template <typename PointType>
 void KD_TREE<PointType>::Reconstruct(PointVector &PointToRecon)
 {
-    delete_tree_nodes(&Root_Node);
-    PointVector().swap(PCL_Storage);
-    Rebuild_Logger.clear();
     Build(PointToRecon);
+    PointVector().swap(PCL_Storage);
     return;
 }
 
@@ -1509,7 +1548,7 @@ void KD_TREE<PointType>::Search(KD_TREE_NODE *root, const int &k_nearest, const 
 template <typename PointType>
 void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, const BoxPointType &boxpoint, PointVector &Storage)
 {
-    if (root == nullptr)
+    if (root == nullptr || root->tree_deleted)
         return;
     Push_Down(root);
     if (boxpoint.vertex_max[0] <= root->node_range_x[0] || boxpoint.vertex_min[0] > root->node_range_x[1])
@@ -1518,7 +1557,7 @@ void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, const BoxPointType 
         return;
     if (boxpoint.vertex_max[2] <= root->node_range_z[0] || boxpoint.vertex_min[2] > root->node_range_z[1])
         return;
-    if (boxpoint.vertex_min[0] <= root->node_range_x[0] && boxpoint.vertex_max[0] > root->node_range_x[1] && boxpoint.vertex_min[1] <= root->node_range_y[0] && boxpoint.vertex_max[1] > root->node_range_y[1] && boxpoint.vertex_min[2] <= root->node_range_z[0] && boxpoint.vertex_max[2] > root->node_range_z[1])
+    if (Rebuild_Ptr == nullptr && boxpoint.vertex_min[0] <= root->node_range_x[0] && boxpoint.vertex_max[0] > root->node_range_x[1] && boxpoint.vertex_min[1] <= root->node_range_y[0] && boxpoint.vertex_max[1] > root->node_range_y[1] && boxpoint.vertex_min[2] <= root->node_range_z[0] && boxpoint.vertex_max[2] > root->node_range_z[1])
     {
         flatten(root, Storage, NOT_RECORD);
         return;
@@ -1534,9 +1573,8 @@ void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, const BoxPointType 
     }
     else
     {
-        pthread_mutex_lock(&search_flag_mutex);
+        RebuildSearchGuard guard(*this);
         Search_by_range(root->left_son_ptr, boxpoint, Storage);
-        pthread_mutex_unlock(&search_flag_mutex);
     }
     if ((Rebuild_Ptr == nullptr) || root->right_son_ptr != *Rebuild_Ptr)
     {
@@ -1544,9 +1582,8 @@ void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, const BoxPointType 
     }
     else
     {
-        pthread_mutex_lock(&search_flag_mutex);
+        RebuildSearchGuard guard(*this);
         Search_by_range(root->right_son_ptr, boxpoint, Storage);
-        pthread_mutex_unlock(&search_flag_mutex);
     }
     return;
 }
@@ -1554,7 +1591,7 @@ void KD_TREE<PointType>::Search_by_range(KD_TREE_NODE *root, const BoxPointType 
 template <typename PointType>
 void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, const PointType &point, const float &radius, PointVector &Storage)
 {
-    if (root == nullptr)
+    if (root == nullptr || root->tree_deleted)
         return;
     Push_Down(root);
     PointType range_center;
@@ -1563,7 +1600,8 @@ void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, const PointType &p
     range_center.z = (root->node_range_z[0] + root->node_range_z[1]) * 0.5;
     float dist = std::sqrt(calc_dist(range_center, point));
     if (dist > radius + std::sqrt(root->radius_sq)) return;
-    if (dist <= radius - std::sqrt(root->radius_sq)) 
+    //Codex: An ancestor may contain the rebuilding subtree; recurse through guarded entries.
+    if (Rebuild_Ptr == nullptr && dist <= radius - std::sqrt(root->radius_sq)) 
     {
         flatten(root, Storage, NOT_RECORD);
         return;
@@ -1577,9 +1615,8 @@ void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, const PointType &p
     }
     else
     {
-        pthread_mutex_lock(&search_flag_mutex);
+        RebuildSearchGuard guard(*this);
         Search_by_radius(root->left_son_ptr, point, radius, Storage);
-        pthread_mutex_unlock(&search_flag_mutex);
     }
     if ((Rebuild_Ptr == nullptr) || root->right_son_ptr != *Rebuild_Ptr)
     {
@@ -1587,9 +1624,8 @@ void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, const PointType &p
     }
     else
     {
-        pthread_mutex_lock(&search_flag_mutex);
+        RebuildSearchGuard guard(*this);
         Search_by_radius(root->right_son_ptr, point, radius, Storage);
-        pthread_mutex_unlock(&search_flag_mutex);
     }    
     return;
 }
@@ -1597,7 +1633,7 @@ void KD_TREE<PointType>::Search_by_radius(KD_TREE_NODE *root, const PointType &p
 template <typename PointType>
 bool KD_TREE<PointType>::CollisionCheckRecursive(KD_TREE_NODE *root, const PointType &point, const float &radius)
 {
-    if (root == nullptr) return false;
+    if (root == nullptr || root->tree_deleted) return false;
     Push_Down(root);
     PointType range_center;
     range_center.x = (root->node_range_x[0] + root->node_range_x[1]) * 0.5;
@@ -1621,9 +1657,8 @@ bool KD_TREE<PointType>::CollisionCheckRecursive(KD_TREE_NODE *root, const Point
     }
     else
     {
-        pthread_mutex_lock(&search_flag_mutex);
+        RebuildSearchGuard guard(*this);
         bool collision_ = CollisionCheckRecursive(root->left_son_ptr, point, radius);
-        pthread_mutex_unlock(&search_flag_mutex);
         if (collision_)
         {
             return true;
@@ -1638,9 +1673,8 @@ bool KD_TREE<PointType>::CollisionCheckRecursive(KD_TREE_NODE *root, const Point
     }
     else
     {
-        pthread_mutex_lock(&search_flag_mutex);
+        RebuildSearchGuard guard(*this);
         bool collision_ = CollisionCheckRecursive(root->right_son_ptr, point, radius);
-        pthread_mutex_unlock(&search_flag_mutex);
         if (collision_)
         {
             return true;
@@ -1958,13 +1992,13 @@ void KD_TREE<PointType>::flatten(KD_TREE_NODE *root, PointVector &Storage, delet
         case NOT_RECORD:
             break;
         case DELETE_POINTS_REC:
-            if (root->point_deleted && !root->point_downsample_deleted)
+            if (!Delete_Storage_Disabled && root->point_deleted && !root->point_downsample_deleted)
             {
                 Points_deleted.push_back(root->point);
             }
             break;
         case MULTI_THREAD_REC:
-            if (root->point_deleted && !root->point_downsample_deleted)
+            if (!Delete_Storage_Disabled && root->point_deleted && !root->point_downsample_deleted)
             {
                 Multithread_Points_deleted.push_back(root->point);
             }

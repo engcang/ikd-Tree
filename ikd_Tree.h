@@ -261,6 +261,32 @@ public:
 
 private:
     // Multi-thread Tree Rebuild
+    //Codex: Use the existing search-counter protocol before entering a subtree being rebuilt.
+    class RebuildSearchGuard
+    {
+        KD_TREE &tree_;
+    public:
+        explicit RebuildSearchGuard(KD_TREE &tree) : tree_(tree)
+        {
+            pthread_mutex_lock(&tree_.search_flag_mutex);
+            while (tree_.search_mutex_counter == -1)
+            {
+                pthread_mutex_unlock(&tree_.search_flag_mutex);
+                usleep(1);
+                pthread_mutex_lock(&tree_.search_flag_mutex);
+            }
+            ++tree_.search_mutex_counter;
+            pthread_mutex_unlock(&tree_.search_flag_mutex);
+        }
+        ~RebuildSearchGuard()
+        {
+            pthread_mutex_lock(&tree_.search_flag_mutex);
+            --tree_.search_mutex_counter;
+            pthread_mutex_unlock(&tree_.search_flag_mutex);
+        }
+        RebuildSearchGuard(const RebuildSearchGuard &) = delete;
+        RebuildSearchGuard &operator=(const RebuildSearchGuard &) = delete;
+    };
     bool termination_flag = false;
     bool rebuild_flag = false;
     pthread_t rebuild_thread;
@@ -314,7 +340,9 @@ private:
     static bool point_cmp_z(const PointType &a, const PointType &b);
 
 public:
-    KD_TREE(float delete_param = 0.5, float balance_param = 0.6, float box_length = 0.2);
+    void Get_Points(PointVector &Storage);
+    //Codex: Disable removed-point history when the caller already maintains occupancy deltas.
+    KD_TREE(float delete_param = 0.5, float balance_param = 0.6, float box_length = 0.2, bool record_removed_points = true);
     ~KD_TREE();
     void Set_delete_criterion_param(const float &delete_param)
     {
